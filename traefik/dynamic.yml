@@ -1,0 +1,18 @@
+http:
+  middlewares:
+    gzip:
+      compress: {}
+    security-headers:
+      headers:
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        stsPreload: true
+        contentTypeNosniff: true
+        frameDeny: true
+        referrerPolicy: "no-referrer"
+        browserXssFilter: true
+    default-chain:
+      chain:
+        middlewares:
+          - gzip
+          - security-headers
