@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frota DPL</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- TELA LOGIN -->
+    <div id="loginScreen" class="screen active">
+        <img src="/wl.png" alt="WL Logo" class="login-logo-left">
+        <img src="/dpl.png" alt="DPL Logo" class="login-logo-right">
+        <div class="login-box">
+            <h1>Controle de Frota DPL</h1>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label>Usuário</label>
+                    <input type="text" id="usuario_id" required>
+                </div>
+                <div class="form-group">
+                    <label>Senha</label>
+                    <input type="password" id="senha" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-full">Entrar</button>
+                <div id="loginError" class="error-message"></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- TELA MOTORISTA -->
+    <div id="motoristaScreen" class="screen">
+        <div class="header">
+            <h1>🚙 Garagem</h1>
+            <button id="logoutBtn" class="btn btn-secondary">Sair</button>
+        </div>
+        <div class="container">
+            <!-- PAINEL RETIRADA -->
+            <div id="painelRetirada" class="panel">
+                <h2>📦 Retirar Veículo</h2>
+                <form id="formRetirada">
+                    <div class="form-group">
+                        <label>Veículo</label>
+                        <select id="veiculo" required>
+                            <option value="">-- Selecione um veículo --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>KM Inicial</label>
+                        <input type="number" id="km" placeholder="45320" step="0.1" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Observações</label>
+                        <textarea id="observacoes" placeholder="Estado do veículo..." rows="3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Fotos (até 5)</label>
+                        <div class="photos-grid" id="photosGridRetirada">
+                            <label class="photo-upload-btn" onclick="document.getElementById('photoInput0').click()">
+                                Adicionar foto
+                                <input type="file" id="photoInput0" class="photo-input" accept="image/*">
+                            </label>
+                            <label class="photo-upload-btn" onclick="document.getElementById('photoInput1').click()">
+                                Adicionar foto
+                                <input type="file" id="photoInput1" class="photo-input" accept="image/*">
+                            </label>
+                            <label class="photo-upload-btn" onclick="document.getElementById('photoInput2').click()">
+                                Adicionar foto
+                                <input type="file" id="photoInput2" class="photo-input" accept="image/*">
+                            </label>
+                            <label class="photo-upload-btn" onclick="document.getElementById('photoInput3').click()">
+                                Adicionar foto
+                                <input type="file" id="photoInput3" class="photo-input" accept="image/*">
+                            </label>
+                            <label class="photo-upload-btn" onclick="document.getElementById('photoInput4').click()">
+                                Adicionar foto
+                                <input type="file" id="photoInput4" class="photo-input" accept="image/*">
+                            </label>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-full">Retirar Veículo</button>
+                </form>
+            </div>
+
+            <!-- PAINEL DEVOLUÇÃO -->
+            <div id="painelDevolucao" class="panel" style="display: none;">
+                <h2>🔑 Devolver Veículo</h2>
+                <div class="info-box">
+                    <h3>Dados da Retirada</h3>
+                    <div class="info-row">
+                        <span class="info-label">Veículo:</span>
+                        <span class="info-value" id="veiculo_info">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">KM Retirada:</span>
+                        <span class="info-value" id="km_retirada_info">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Observações:</span>
+                        <span class="info-value" id="obs_retirada_info">-</span>
+                    </div>
+                </div>
+                <form id="formDevolucao">
+                    <div class="form-group">
+                        <label>KM Final</label>
+                        <input type="number" id="km_devolucao" placeholder="45450" step="0.1" required>
+                    </div>
+                    <div id="kmRodado" style="display: none; background: #e8f5e9; padding: 12px; border-radius: 6px; margin: 10px 0; color: #2e7d32; font-weight: 600;">
+                        KM Rodado: <span id="kmRodadoValor">0</span> km
+                    </div>
+                    <div class="form-group">
+                        <label>Observações da Devolução</label>
+                        <textarea id="obs_devolucao" placeholder="Estado geral..." rows="3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Fotos da Devolução (até 5)</label>
+                        <div class="photos-grid" id="photosGridDevolucao">
+                            <label class="photo-upload-btn" onclick="document.getElementById('photoInputDev0').click()">
+                                Adicionar foto
+                                <input type="file" id="photoInputDev0" class="photo-input-devolucao" accept="image/*">
+                            </label>
+                            <label class="photo-upload-btn" onclick="document.getElementById('photoInputDev1').click()">
+                                Adicionar foto
+                                <input type="file" id="photoInputDev1" class="photo-input-devolucao" accept="image/*">
+                            </label>
+                            <label class="photo-upload-btn" onclick="document.getElementById('photoInputDev2').click()">
+                                Adicionar foto
+                                <input type="file" id="photoInputDev2" class="photo-input-devolucao" accept="image/*">
+                            </label>
+                            <label class="photo-upload-btn" onclick="document.getElementById('photoInputDev3').click()">
+                                Adicionar foto
+                                <input type="file" id="photoInputDev3" class="photo-input-devolucao" accept="image/*">
+                            </label>
+                            <label class="photo-upload-btn" onclick="document.getElementById('photoInputDev4').click()">
+                                Adicionar foto
+                                <input type="file" id="photoInputDev4" class="photo-input-devolucao" accept="image/*">
+                            </label>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-full">Devolver Veículo</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- TELA ADMIN -->
+    <div id="adminScreen" class="screen">
+        <div class="header">
+            <h1>⚙️ Admin</h1>
+            <button id="logoutBtn2" class="btn btn-secondary">Sair</button>
+        </div>
+        <div class="container">
+            <div class="tabs">
+                <button class="tab-btn active" onclick="switchTab(0)">👥 Usuários</button>
+                <button class="tab-btn" onclick="switchTab(1)">🚗 Veículos</button>
+                <button class="tab-btn" onclick="switchTab(2)">📊 Relatórios</button>
+                <button class="tab-btn" onclick="switchTab(3)">🖼️ Fotos</button>
+            </div>
+
+            <!-- ABA USUARIOS -->
+            <div class="tab-content active">
+                <div class="panel">
+                    <h2>Novo Usuário</h2>
+                    <form id="formNovoUsuario">
+                        <div class="form-group">
+                            <label>ID do Usuário</label>
+                            <input type="text" id="novo_usuario_id" placeholder="EX: 4 Ultimos digitos do CPF" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Nome</label>
+                            <input type="text" id="novo_usuario_nome" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Senha</label>
+                            <input type="password" id="novo_usuario_senha" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="novo_usuario_admin">
+                                <span>Admin</span>
+                            </label>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Criar Usuário</button>
+                    </form>
+                </div>
+                <div class="panel">
+                    <h2>Usuários</h2>
+                    <div id="listaUsuarios"></div>
+                </div>
+            </div>
+
+            <!-- ABA VEICULOS -->
+            <div class="tab-content">
+                <div class="panel">
+                    <h2>Novo Veículo</h2>
+                    <form id="formNovoVeiculo">
+                        <div class="form-group">
+                            <label>Placa</label>
+                            <input type="text" id="novo_veiculo_placa" placeholder="ABC-1234" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Marca</label>
+                            <input type="text" id="novo_veiculo_marca" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Modelo</label>
+                            <input type="text" id="novo_veiculo_modelo" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Ano</label>
+                            <input type="number" id="novo_veiculo_ano" min="2000" max="2099" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Criar Veículo</button>
+                    </form>
+                </div>
+                <div class="panel">
+                    <h2>Veículos</h2>
+                    <div id="listaVeiculos"></div>
+                </div>
+            </div>
+
+            <!-- ABA RELATORIOS -->
+            <div class="tab-content">
+                <div class="panel">
+                    <h2>📊 Relatórios de KM</h2>
+                    
+                    <div class="relatorio-filters">
+                        <div class="filter-group">
+                            <label for="filtroUsuario">Selecione Usuário (Motorista)</label>
+                            <select id="filtroUsuario" onchange="handleUsuarioChange()">
+                                <option value="">-- Ver Todos os Veículos --</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="relatorio-tabs">
+                        <button class="relatorio-tab-btn active" onclick="switchRelatorioPeriodo('dia')">📅 Hoje</button>
+                        <button class="relatorio-tab-btn" onclick="switchRelatorioPeriodo('semana')">📆 Semana</button>
+                        <button class="relatorio-tab-btn" onclick="switchRelatorioPeriodo('mes')">📈 Mês</button>
+                        <button class="relatorio-tab-btn" onclick="switchRelatorioPeriodo('total')">📊 Total</button>
+                    </div>
+                    <div id="relatorio-container"></div>
+                </div>
+            </div>
+
+            <!-- ABA FOTOS -->
+            <div class="tab-content">
+                <div class="panel">
+                    <h2>🖼️ Fotos por Usuário</h2>
+                    <div class="relatorio-filters">
+                        <div class="filter-group">
+                            <label for="filtroUsuarioFotos">Selecione Usuário</label>
+                            <select id="filtroUsuarioFotos" onchange="handleUsuarioFotosChange()">
+                                <option value="">-- Escolha um usuário --</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="fotos-container"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE FOTO -->
+    <div id="fotoModal" class="foto-modal" onclick="closeFotoModal(event)">
+        <div class="foto-modal-content" onclick="event.stopPropagation()">
+            <button class="foto-modal-close" onclick="closeFotoModal(event)">×</button>
+            <img id="fotoModalImg" src="" alt="Foto em tamanho real">
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

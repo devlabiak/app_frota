@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>App Frota - Controle de Veículos</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2196F3">
+</head>
+<body>
+    <div id="app">
+        <!-- Tela de Login -->
+        <div id="loginScreen" class="screen">
+            <div class="login-container">
+                <h1>App Frota</h1>
+                <p>Controle de Veículos</p>
+                <form id="loginForm" onsubmit="handleLogin(event)">
+                    <div class="form-group">
+                        <label for="usuario_id">Usuário ID</label>
+                        <input type="text" id="usuario_id" name="usuario_id" required placeholder="Ex: admin">
+                    </div>
+                    <div class="form-group">
+                        <label for="senha">Senha</label>
+                        <input type="password" id="senha" name="senha" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Login</button>
+                </form>
+                <div id="loginError" class="error-message"></div>
+            </div>
+        </div>
+
+        <!-- Tela de Coleta -->
+        <div id="coletaScreen" class="screen hidden">
+            <header class="header">
+                <div>
+                    <h1>App Frota - Coleta</h1>
+                </div>
+                <button id="logoutBtn" class="btn-icon">Sair</button>
+            </header>
+
+            <div id="painelNovaColeta" class="form-container">
+                <h2>📦 Retirar Veículo</h2>
+                <form id="retirarForm">
+                    <div class="form-group">
+                        <label for="veiculo_id_retirar">Selecione o Veículo</label>
+                        <select id="veiculo_id_retirar" name="veiculo_id" required onchange="carregarDadosVeiculo()">
+                            <option value="">-- Carregando veículos --</option>
+                        </select>
+                    </div>
+
+                    <div id="veiculoDetalhes" class="veiculo-detalhes hidden">
+                        <div class="form-group">
+                            <p><strong>Marca:</strong> <span id="detalhe_marca"></span></p>
+                            <p><strong>Modelo:</strong> <span id="detalhe_modelo"></span></p>
+                            <p><strong>Ano:</strong> <span id="detalhe_ano"></span></p>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="km_retirada">KM do Veículo *</label>
+                        <input type="number" id="km_retirada" name="km" placeholder="Ex: 45321" step="0.1" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="obs_retirada">Observações na Retirada</label>
+                        <textarea id="obs_retirada" name="observacoes" placeholder="Ex: Carro com pequeno amassado na porta traseira..." rows="3"></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-large">
+                        🚗 Retirar Veículo
+                    </button>
+                </form>
+            </div>
+
+            <!-- Painel de Viagem Ativa -->
+            <div id="painelViagemAtiva" class="form-container hidden">
+                <div class="status-coleta">
+                    <h2>🚙 Veículo em Uso</h2>
+                    <div class="info-veiculo">
+                        <p><strong>Marca/Modelo:</strong> <span id="coleta_veiculo_marca"></span> <span id="coleta_veiculo_modelo"></span></p>
+                        <p><strong>Placa:</strong> <span id="coleta_veiculo_placa"></span></p>
+                        <p><strong>Retirado em:</strong> <span id="coleta_data_retirada"></span></p>
+                    </div>
+                </div>
+
+                <!-- Inspeção do Veículo -->
+                <div class="inspecao-veiculo">
+                    <h3>📸 Inspeção do Veículo</h3>
+                    
+                    <!-- Fotos -->
+                    <div class="form-group">
+                        <label for="fotosColeta">Adicionar Fotos</label>
+                        <input type="file" id="fotosColeta" accept="image/*" multiple>
+                        <div id="previewFotos" class="preview-fotos"></div>
+                    </div>
+
+                    <!-- Avarias -->
+                    <div class="form-group">
+                        <label for="avisoAvarias">
+                            <input type="checkbox" id="avisoAvarias" onchange="toggleAvarias()">
+                            Há avarias/danos no veículo?
+                        </label>
+                    </div>
+
+                    <div id="secaoAvarias" class="hidden">
+                        <div class="form-group">
+                            <label for="descricaoAvarias">Descreva os danos/avarias</label>
+                            <textarea id="descricaoAvarias" rows="3" placeholder="Ex: Arranhão na porta, pneu furado, etc."></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Histórico de Viagens -->
+                <div id="historicoViagens" class="viagens-historico">
+                    <h3>📋 Viagens Realizadas</h3>
+                    <div id="listaViagens"></div>
+                </div>
+
+                <!-- Botões de Ação -->
+                <div class="acoes-coleta">
+                    <button id="btnSair" class="btn btn-info btn-large" onclick="iniciarSaida()">
+                        ➡️ Sair com Veículo
+                    </button>
+                    <button id="btnRetornar" class="btn btn-warning btn-large hidden" onclick="iniciarRetorno()">
+                        ⬅️ Retornar com Veículo
+                    </button>
+                    <button id="btnDevolver" class="btn btn-danger btn-large" onclick="devolverVeiculo()">
+                        🔑 Devolver Veículo
+                    </button>
+                </div>
+            </div>
+
+            <!-- Painel de Saída -->
+            <div id="painelSaida" class="form-container hidden">
+                <h2>➡️ Registrar Saída</h2>
+                <form id="formSaida">
+                    <div class="form-group">
+                        <label for="km_saida">Quilometragem Saída</label>
+                        <input type="number" id="km_saida" name="km" step="0.01" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="obs_saida">Observações (opcional)</label>
+                        <textarea id="obs_saida" name="observacoes" rows="2"></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-large">
+                        ✅ Confirmar Saída
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-large" onclick="cancelarSaida()">
+                        ❌ Cancelar
+                    </button>
+                </form>
+            </div>
+
+            <!-- Painel de Retorno -->
+            <div id="painelRetorno" class="form-container hidden">
+                <h2>⬅️ Registrar Retorno</h2>
+                <form id="formRetorno">
+                    <div class="info-viagem">
+                        <p><strong>Viagem #</strong> <span id="numero_viagem_retorno"></span></p>
+                        <p><strong>KM Saída:</strong> <span id="km_saida_display"></span> km</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="km_retorno">Quilometragem Retorno</label>
+                        <input type="number" id="km_retorno" name="km" step="0.01" required>
+                    </div>
+
+                    <div id="kmRodadoDisplay" class="km-rodado-display"></div>
+
+                    <div class="form-group">
+                        <label for="obs_retorno">Observações (opcional)</label>
+                        <textarea id="obs_retorno" name="observacoes" rows="2"></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-large">
+                        ✅ Confirmar Retorno
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-large" onclick="cancelarRetorno()">
+                        ❌ Cancelar
+                    </button>
+                </form>
+            </div>
+
+            <!-- Painel de Devolução -->
+            <div id="painelDevolucao" class="form-container hidden">
+                <h2>🔑 Devolver Veículo</h2>
+                
+                <div class="secao-dados-retirada">
+                    <h3>📋 Dados da Retirada</h3>
+                    <div class="info-comparacao">
+                        <div class="info-item">
+                            <label>KM Retirada:</label>
+                            <span id="km_retirada_display" class="destaque">-</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Observações Retirada:</label>
+                            <span id="obs_retirada_display" class="observacao">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <form id="formDevolucao">
+                    <h3>📝 Dados da Devolução</h3>
+                    
+                    <div class="form-group">
+                        <label for="km_devolucao">KM do Veículo na Devolução *</label>
+                        <input type="number" id="km_devolucao" name="km" placeholder="Ex: 45512" step="0.1" required>
+                    </div>
+
+                    <div id="kmRodadoResumo" class="km-rodado-display"></div>
+
+                    <div class="form-group">
+                        <label for="obs_devolucao">Observações na Devolução</label>
+                        <textarea id="obs_devolucao" name="observacoes" placeholder="Ex: Carro sem problemas, limpeza feita..." rows="3"></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-large">
+                        ✅ Confirmar Devolução
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-large" onclick="cancelarDevolucao()">
+                        ❌ Cancelar
+                    </button>
+                </form>
+            </div>
+
+                    <div id="observacoesContainer" class="hidden">
+                        <div class="form-group">
+                            <label for="observacoes">Observações</label>
+                        <textarea id="observacoes" name="observacoes" rows="4" placeholder="Descreva as avarias..."></textarea>
+                    </div>
+                </div>
+
+                    <button type="submit" class="btn btn-primary btn-large">
+                        ✓ Salvar Coleta
+                    </button>
+                </form>
+            </div>
+
+            <!-- Painel de Próxima Etapa (REMOVIDO - usando novo sistema) -->
+            
+        </div>
+
+        <!-- Tela de Admin -->
+        <div id="adminScreen" class="screen hidden">
+            <header class="header">
+                <div>
+                    <h1>App Frota - Relatórios</h1>
+                </div>
+                <button id="logoutBtn2" class="btn-icon">Sair</button>
+            </header>
+            <div class="admin-tabs">
+                <button class="tab-btn active" onclick="switchAdminTab('usuarios')">Usuários</button>
+                <button class="tab-btn" onclick="switchAdminTab('veiculos')">Veículos</button>
+                <button class="tab-btn" onclick="switchAdminTab('relatorios')">Relatórios</button>
+            </div>
+
+            <!-- Abas Admin -->
+            <div id="usuariosTab" class="admin-tab active">
+                <form id="newUserForm" class="form-container">
+                    <h3>Novo Usuário</h3>
+                    <div class="form-group">
+                        <label for="newUserId">Usuário ID</label>
+                        <input type="text" id="newUserId" required placeholder="Ex: MOTO001">
+                    </div>
+                    <div class="form-group">
+                        <label for="newUserName">Nome</label>
+                        <input type="text" id="newUserName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="newUserPassword">Senha</label>
+                        <input type="password" id="newUserPassword" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="checkbox-item">
+                            <input type="checkbox" id="newUserAdmin">
+                            <span>Administrador</span>
+                        </label>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Criar Usuário</button>
+                </form>
+                <h3>Usuários Cadastrados</h3>
+                <div id="usuariosList" class="list-container"></div>
+            </div>
+
+            <div id="veiculosTab" class="admin-tab">
+                <form id="newVehicleForm" class="form-container">
+                    <h3>Novo Veículo</h3>
+                    <div class="form-group">
+                        <label for="newVehiclePlaca">Placa</label>
+                        <input type="text" id="newVehiclePlaca" required placeholder="ABC-1234">
+                    </div>
+                    <div class="form-group">
+                        <label for="newVehicleMarca">Marca</label>
+                        <input type="text" id="newVehicleMarca" required placeholder="Mercedes, Iveco, etc">
+                    </div>
+                    <div class="form-group">
+                        <label for="newVehicleModelo">Modelo</label>
+                        <input type="text" id="newVehicleModelo" required placeholder="Sprinter, Iveco, etc">
+                    </div>
+                    <div class="form-group">
+                        <label for="newVehicleAno">Ano</label>
+                        <input type="number" id="newVehicleAno" required min="2000" max="2099">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Cadastrar Veículo</button>
+                </form>
+                <h3>Veículos Cadastrados</h3>
+                <div id="vehiclesList" class="list-container"></div>
+            </div>
+
+            <div id="relatoriosTab" class="admin-tab">
+                <div class="relatorio-opcoes">
+                    <div class="form-group">
+                        <label for="usuarioFiltro">Filtrar por Usuário (opcional)</label>
+                        <select id="usuarioFiltro" onchange="carregarRelatorioFiltrado()">
+                            <option value="">-- Todos os Veículos (Visão Geral) --</option>
+                            <option id="carregandoUsuarios" value="" disabled>Carregando usuários...</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="relatorioContent" class="relatorio-container"></div>
+                <button onclick="gerarRelatorio()" class="btn btn-primary">
+                    📊 Atualizar Relatório
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/db.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/viagens.js"></script>
+    <script src="js/relatorios.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/sync.js"></script>
+    <script>
+        // Script de diagnóstico
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('✓ DOM Carregado');
+            console.log('✓ switchAdminTab existe:', typeof switchAdminTab === 'function');
+            console.log('✓ Total de abas admin:', document.querySelectorAll('.admin-tab').length);
+            console.log('✓ veiculosTab elemento:', document.getElementById('veiculosTab') ? 'encontrado' : 'NÃO ENCONTRADO');
+            console.log('✓ newVehicleForm elemento:', document.getElementById('newVehicleForm') ? 'encontrado' : 'NÃO ENCONTRADO');
+        });
+    </script>
+</body>
+</html>

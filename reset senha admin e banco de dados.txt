@@ -1,0 +1,12 @@
+RESET SENHA LOCAL
+Reset geral senha admin e banco:
+
+cd "C:\Users\Usuario\Desktop\arquivos python\App_Frota\App_Frota" ; docker-compose down ; docker-compose up --build -d ; Start-Sleep -Seconds 8 ; docker-compose exec api python init_db.py
+
+
+reset de senha admin apenas:
+docker-compose exec api python reset_admin_password.py
+
+RESET SENHA NO SERVIDOR NO PAINEL ROOT
+
+docker compose exec api python reset_admin_password.py

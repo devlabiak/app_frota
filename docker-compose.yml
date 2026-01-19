@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  # Backend FastAPI
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: app-frota-api
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://frota_user:senha_super_segura_mude_aqui@db:5432/frota_db
+      - SECRET_KEY=_uvlaPZAtgJrJluydAO_umOm0sdk1FHCA_27cgDixY3tc2hW6T3PHesxU4482ePtP41ZTizZYxWy0ncHHFTRFA
+      - ENVIRONMENT=production
+      - DEBUG=False
+      - RATE_LIMIT_ENABLED=True
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./uploads:/app/uploads
+      - ./data:/app/data
+    depends_on:
+      - db
+    restart: unless-stopped
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Banco de dados PostgreSQL
+  db:
+    image: postgres:15-alpine
+    container_name: app-frota-db
+    environment:
+      - POSTGRES_DB=frota_db
+      - POSTGRES_USER=frota_user
+      - POSTGRES_PASSWORD=senha_super_segura_mude_aqui
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U frota_user -d frota_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+
+networks:
+  app-network:
+    driver: bridge
