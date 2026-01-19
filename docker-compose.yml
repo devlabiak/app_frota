@@ -20,6 +20,8 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: app-frota-api
+    ports:
+      - "8000:8000"
     environment:
       - DATABASE_URL=postgresql://frota_user:senha_super_segura_mude_aqui@db:5432/frota_db
       - SECRET_KEY=_uvlaPZAtgJrJluydAO_umOm0sdk1FHCA_27cgDixY3tc2hW6T3PHesxU4482ePtP41ZTizZYxWy0ncHHFTRFA
@@ -76,3 +78,4 @@ networks:
     driver: bridge
   web:
     driver: bridge
+
