@@ -628,10 +628,12 @@ function renderizarFotosPorDia(dados) {
         return;
     }
 
-    // iso em formato YYYY-MM-DD (sem timezone) vindo já no fuso de SP -> formatar manual para evitar shift
+    // iso em formato YYYY-MM-DD ou YYYY-MM-DDTHH:MM:SS -> extrair só a data e formatar
     const formatarData = (iso) => {
         if (!iso) return '-';
-        const [y, m, d] = iso.split('-');
+        // Extrair apenas YYYY-MM-DD (primeiros 10 caracteres)
+        const dataParte = iso.substring(0, 10);
+        const [y, m, d] = dataParte.split('-');
         if (!d) return iso;
         return `${d}/${m}/${y}`;
     };
