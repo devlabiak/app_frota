@@ -8,6 +8,8 @@ from app.esquemas.usuario import UsuarioCreate, UsuarioResponse
 from app.esquemas.veiculo import VeiculoCreate, VeiculoResponse
 from app.utils import hash_password, verify_token
 from typing import List, Optional
+from datetime import datetime, timedelta
+import pytz
 from datetime import datetime, timedelta, date
 from pytz import timezone as pytz_timezone
 
@@ -199,9 +201,20 @@ def listar_fotos_usuario(usuario_id: str, current_admin: Usuario = Depends(get_c
     resultados = db.query(Foto, Coleta).join(Coleta, Foto.coleta_id == Coleta.id).join(Usuario, Coleta.usuario_id == Usuario.id)
     resultados = resultados.filter(Usuario.usuario_id == usuario_id).order_by(Foto.criado_em.desc()).all()
 
+    # Timezone do Brasil
+    tz = pytz.timezone('America/Sao_Paulo')
+    
     agrupado = {}
     for foto, coleta in resultados:
-        data = foto.criado_em.date().isoformat() if foto.criado_em else "sem-data"
+        # Converter UTC para Brasil antes de extrair a data
+        if foto.criado_em:
+            criado_em_br = foto.criado_em.replace(tzinfo=pytz.utc).astimezone(tz)
+            data = criado_em_br.date().isoformat()
+            criado_em_str = criado_em_br.strftime("%Y-%m-%dT%H:%M:%S")
+        else:
+            data = "sem-data"
+            criado_em_str = None
+            
         if data not in agrupado:
             agrupado[data] = []
         agrupado[data].append({
@@ -209,7 +222,7 @@ def listar_fotos_usuario(usuario_id: str, current_admin: Usuario = Depends(get_c
             "coleta_id": coleta.id,
             "etapa": foto.etapa,
             "caminho": foto.caminho,
-            "criado_em": foto.criado_em.strftime("%Y-%m-%dT%H:%M:%S") if foto.criado_em else None
+            "criado_em": criado_em_str
         })
 
     fotos_por_dia = [
