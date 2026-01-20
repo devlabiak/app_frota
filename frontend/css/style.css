@@ -1193,10 +1193,11 @@ body {
 }
 
 .relatorio-stats {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    display: flex;
+    flex-wrap: wrap;
     gap: 12px;
     margin-bottom: 20px;
+    justify-content: space-between;
 }
 
 .stat-box {
