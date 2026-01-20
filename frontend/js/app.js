@@ -375,8 +375,17 @@ async function devolver(e) {
             }
         }
         
-        coleta = null;
+        // Resetar formulário e limpar estado DEPOIS de fazer upload
         document.getElementById('formDevolucao').reset();
+        
+        // Limpar estado dos botões de foto após upload
+        document.querySelectorAll('#photosGridDevolucao .photo-status').forEach((btn) => {
+            btn.classList.remove('filled');
+            btn.classList.add('empty');
+            btn.innerHTML = '<span class="icon">📷</span><span class="label">Carregar foto</span>';
+        });
+        
+        coleta = null;
         mostraRet();
         await carregarVeiculos();
         
