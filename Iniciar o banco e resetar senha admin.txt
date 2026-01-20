@@ -1,0 +1,6 @@
+
+ao instalar a aplicacao deve criar o banco com o comando
+docker compose exec api python init_db_prod.py
+
+apos criar o banco deve resetar o ADMIN
+docker compose exec api python reset_admin_password.py
