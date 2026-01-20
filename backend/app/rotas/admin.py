@@ -208,8 +208,9 @@ def listar_fotos_usuario(usuario_id: str, current_admin: Usuario = Depends(get_c
     for foto, coleta in resultados:
         # Converter UTC para Brasil antes de extrair a data
         if foto.criado_em:
-            # Tratar criado_em como horário local de SP (sem converter a partir de UTC)
-            criado_em_br = foto.criado_em.replace(tzinfo=tz)
+            # Converter de UTC para São Paulo
+            criado_em_utc = foto.criado_em.replace(tzinfo=pytz.utc)
+            criado_em_br = criado_em_utc.astimezone(tz)
             data = criado_em_br.date().isoformat()
             criado_em_str = criado_em_br.isoformat()
         else:
