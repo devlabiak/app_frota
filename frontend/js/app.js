@@ -216,6 +216,18 @@ function mostraDevol() {
     document.getElementById('veiculo_info').textContent = coleta.veiculo.placa;
     document.getElementById('km_retirada_info').textContent = coleta.km_retirada + ' km';
     document.getElementById('obs_retirada_info').textContent = coleta.observacoes_retirada || '-';
+
+    // Limpar fotos de devolução anteriores
+    document.querySelectorAll('.photo-input-devolucao').forEach(input => {
+        input.value = '';
+    });
+    document.querySelectorAll('#photosGridDevolucao .photo-status').forEach((btn) => {
+        btn.classList.remove('filled');
+        btn.classList.add('empty');
+        btn.innerHTML = '<span class="icon">📷</span><span class="label">Carregar foto</span>';
+        const input = btn.parentElement.querySelector('input[type="file"]');
+        if (input) btn.onclick = () => input.click();
+    });
 }
 
 async function carregarVeiculos() {
@@ -616,8 +628,19 @@ function renderizarFotosPorDia(dados) {
         return;
     }
 
-    const formatarData = (iso) => new Date(iso).toLocaleDateString('pt-BR');
-    const formatarHora = (iso) => iso ? new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '-';
+    const formatarData = (iso) => {
+        if (!iso) return '-';
+        const [y, m, d] = iso.split('-');
+        return `${d}/${m}/${y}`;
+    };
+    const formatarHora = (iso) => {
+        if (!iso) return '-';
+        // iso vem como "YYYY-MM-DDTHH:MM:SS" (sem timezone); evitar ajuste de fuso
+        const [data, hora] = iso.split('T');
+        if (!hora) return '-';
+        const [h, mi] = hora.split(':');
+        return `${h}:${mi}`;
+    };
     const etapaLabel = (etapa) => etapa === 'saida' ? 'Saída' : etapa === 'retorno' ? 'Retorno' : (etapa || '');
 
     let html = `<div class="fotos-header">Mostrando fotos de ${dados.usuario_nome} (${dados.usuario_id})</div>`;
