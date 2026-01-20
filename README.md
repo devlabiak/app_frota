@@ -1,16 +1,17 @@
-# App Frota - Controle de Frota de Veículos
+# App Frota DPL - Controle de Frota de Veículos
 
-Aplicação completa para controle de frota de veículos com **tracking em 6 etapas**, **relatórios detalhados de KM** e **painel administrativo**.
+Sistema completo para gestão de frota com **rastreamento de KM**, **fotos de coleta/devolução** e **painel administrativo**.
 
 ## 🚀 Características
 
-✅ **Login e Autenticação** com JWT (usuario_id + senha)  
-✅ **Workflow de 6 Etapas** - Saída/Retorno em 3 ciclos por coleta  
-✅ **Rastreamento de KM** por veículo, por usuário e por período (dia/semana/mês)  
-✅ **Painel de Admin** com 3 abas: Usuários, Veículos, Relatórios  
-✅ **CRUD Completo** de usuários e veículos com soft delete  
-✅ **Relatórios Detalhados** mostrando uso de veículos e performance de motoristas  
-✅ **Docker** - pronto para deploy em qualquer cloud  
+✅ **Autenticação JWT** segura com bcrypt  
+✅ **Retirada/Devolução** de veículos com registro de KM e fotos (até 5 por operação)  
+✅ **Rastreamento de KM** por veículo, motorista e período  
+✅ **Painel Administrativo** - Usuários, Veículos, Relatórios e Fotos  
+✅ **HTTPS/TLS** com Cloudflare Origin Certificate  
+✅ **Rate Limiting** e headers de segurança (HSTS, X-Frame-Options)  
+✅ **Auto-init** do banco de dados com usuário admin padrão  
+✅ **Docker** + PostgreSQL - pronto para produção  
 
 ## 📱 Funcionalidades
 
@@ -83,229 +84,171 @@ python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
 - Frontend: http://localhost:8000
 - API Docs: http://localhost:8000/docs
 
-## 🐳 Deploy com Docker (Easypanel/Hostinger)
+## 🐳 Deploy em Produção (VPS)
 
-### 1. Preparação Local
+### Pré-requisitos
+- VPS com Ubuntu/Debian
+- Docker + Docker Compose
+- Domínio configurado no Cloudflare
 
+### Deploy Automático
+
+1. **Clonar repositório no VPS**
 ```bash
-# Build da imagem
-docker build -f Dockerfile.prod -t app-frota:latest .
-
-# Testar localmente
-docker run -p 8000:8000 -e DATABASE_URL=sqlite:///./frota.db app-frota:latest
+git clone https://github.com/seu-usuario/app_frota.git
+cd app_frota
 ```
 
-### 2. Deploy no Easypanel
-
-1. **Acessar Easypanel** na sua VPS Hostinger
-2. **Criar novo Container**:
-   - Nome: `app-frota`
-   - Imagem: `seu-usuario/app-frota:latest` (se estiver no Docker Hub)
-   - Porta: `8000`
-   - Variáveis de Ambiente:
-     ```
-     DATABASE_URL=sqlite:///./frota.db
-     SECRET_KEY=sua-chave-secreta-muito-segura
-     ```
-
-3. **Configurar Volume**:
-   - `/uploads` → `/data/app-frota/uploads`
-
-4. **Configurar Domínio**:
-   - Apontar seu domínio para a VPS
-   - Easypanel gerará HTTPS automaticamente
-
-### 3. Com docker-compose
-
-Se preferir usar docker-compose:
-
+2. **Executar script de deploy**
 ```bash
-docker-compose up -d
+chmod +x DEPLOY_VPS.sh
+./DEPLOY_VPS.sh
 ```
 
-## 📝 Primeiro Acesso
+O script instala:
+- Docker e Docker Compose
+- Nginx com TLS (certificado Cloudflare Origin)
+- PostgreSQL 15
+- FastAPI com auto-init do banco
 
-1. **Criar usuário admin** (execute no terminal do container):
+3. **Configuração Cloudflare**
+- DNS: nuvem laranja (proxied)
+- SSL/TLS: Full (Strict)
+- Edge Certificates: "Always Use HTTPS" + "Automatic HTTPS Rewrites"
+
+### Credenciais Padrão
+- Usuário: `admin`
+- Senha: `admin`
+- **⚠️ ALTERE após primeiro login!**
+
+### Comandos Úteis
 ```bash
-python -c "
-from app.database import SessionLocal, Base, engine
-from app.modelos import Usuario
-from app.utils import hash_password
+# Status dos containers
+docker compose ps
 
-Base.metadata.create_all(bind=engine)
-db = SessionLocal()
-admin = Usuario(
-    nome='Administrador',
-    email='admin@example.com',
-    senha_hash=hash_password('123456'),
-    is_admin=True,
-    ativo=True
-)
-db.add(admin)
-db.commit()
-print('Admin criado: admin@example.com / 123456')
-"
+# Logs da API
+docker compose logs api --tail 50
+
+# Resetar senha do admin
+docker compose exec api python reset_admin_password.py
+
+# Rebuild após mudanças
+docker compose down
+docker compose up -d --build
 ```
 
-2. **Acessar aplicação**:
-   - URL: `http://seu-dominio.com`
-   - Email: `admin@example.com`
-   - Senha: `123456` (MUDE DEPOIS!)
+## 📋 Funcionalidades
 
-## 🧪 Teste Rápido
+### Motoristas
+- Login com usuario_id e senha
+- Retirar veículo disponível com registro de KM e até 5 fotos
+- Devolver veículo com KM final e fotos
+- Histórico de coletas
 
-### Credenciais de Teste
-```
-Admin:
-  usuario_id: admin
-  senha: 123456
-
-Motorista:
-  usuario_id: MOTO001
-  senha: 123456
-```
-
-### Veículos de Teste
-- ABC-1234 (Mercedes Sprinter 2020)
-- XYZ-9876 (Iveco Daily 2021)
-- DEF-5678 (Scania R 2019)
-
-### Fluxo de Teste
-
-1. **Login como Motorista MOTO001**
-2. **Selecionar veículo** (ex: ABC-1234)
-3. **Registrar as 6 etapas**:
-   - Saída 1: Registre KM
-   - Retorno 1: Registre KM
-   - Saída 2: Registre KM
-   - Retorno 2: Registre KM
-   - Saída 3: Registre KM
-   - Retorno 3: Registre KM
-4. **Login como Admin**
-5. **Acessar aba Relatórios**
-6. **Visualizar dados de KM** por veículo e por usuário
-
-## 📊 Estrutura de Dados
-
-### Coleta (6 Etapas)
-```json
-{
-  "id": 1,
-  "usuario_id": 1,
-  "veiculo_id": 1,
-  "saida_1": {"horario": "2024-01-19T08:00:00", "km": 100, "observacoes": "..."},
-  "retorno_1": {"horario": "2024-01-19T10:00:00", "km": 120, "observacoes": "..."},
-  "saida_2": {"horario": "2024-01-19T11:00:00", "km": 120, "observacoes": "..."},
-  "retorno_2": {"horario": "2024-01-19T13:00:00", "km": 145, "observacoes": "..."},
-  "saida_3": {"horario": "2024-01-19T14:00:00", "km": 145, "observacoes": "..."},
-  "retorno_3": {"horario": "2024-01-19T16:00:00", "km": 170, "observacoes": "..."}
-}
-```
-
-### Veículo Disponível
-Um veículo só fica **indisponível** enquanto há uma coleta **ativa** (Saída registrado sem Retorno correspondente).
-
-Após qualquer **Retorno**, o veículo volta a ficar disponível.
+### Administradores
+- **Usuários**: Criar, listar, ativar/desativar motoristas e admins
+- **Veículos**: CRUD completo de veículos
+- **Relatórios**: Estatísticas de uso, KM por veículo/motorista/período
+- **Fotos**: Visualizar fotos de coletas por motorista
 
 ## 🔐 Segurança
 
-- [ ] **Importante**: Alterar `SECRET_KEY` em `.env`
-- [ ] Usar HTTPS em produção
-- [ ] Trocar senha do admin padrão
-- [ ] Configurar backup de banco de dados
-- [ ] Usar PostgreSQL em produção (não SQLite)
+✅ Senha hash com bcrypt  
+✅ JWT para autenticação  
+✅ HTTPS/TLS com certificado Cloudflare  
+✅ HSTS + headers de segurança  
+✅ Rate limiting (60 req/min)  
+✅ CORS configurado  
+✅ PostgreSQL sem exposição de porta  
 
-## 📊 Estrutura de Pastas
+## 📊 Estrutura
 
 ```
-App_Frota/
+app_frota/
 ├── backend/
 │   ├── app/
-│   │   ├── modelos/
-│   │   │   ├── usuario.py
-│   │   │   └── coleta.py
-│   │   ├── esquemas/
-│   │   │   ├── usuario.py
-│   │   │   └── coleta.py
-│   │   ├── rotas/
-│   │   │   ├── auth.py
-│   │   │   ├── admin.py
-│   │   │   └── coleta.py
+│   │   ├── modelos/      # SQLAlchemy models
+│   │   ├── esquemas/     # Pydantic schemas
+│   │   ├── rotas/        # API endpoints
 │   │   ├── database.py
 │   │   ├── config.py
 │   │   └── utils.py
 │   ├── main.py
+│   ├── init_db_prod.py   # Auto-init com retry
+│   ├── reset_admin_password.py
+│   ├── cleanup_old_photos.py
 │   └── requirements.txt
 ├── frontend/
 │   ├── index.html
-│   ├── manifest.json
-│   ├── css/
-│   │   └── style.css
-│   └── js/
-│       ├── app.js
-│       ├── api.js
-│       ├── db.js
-│       ├── sync.js
-│       └── sw.js
-├── uploads/
-├── Dockerfile
+│   ├── css/style.css
+│   └── js/ (app.js, api.js)
+├── uploads/              # Fotos de coletas
 ├── docker-compose.yml
+├── Dockerfile
+├── DEPLOY_VPS.sh
 └── README.md
 ```
 
-## 🔗 Endpoints da API
+## 🔗 API Endpoints
 
-### Autenticação
-- `POST /api/auth/login` - Fazer login
-- `POST /api/auth/verificar-token` - Verificar token
+### Auth
+- `POST /api/auth/login` - Login
 
-### Coleta de Dados
-- `POST /api/coleta/criar` - Criar nova coleta
-- `POST /api/coleta/upload-foto/{coleta_id}` - Upload de foto
-- `GET /api/coleta/minhas-coletas` - Listar minhas coletas
+### Coleta
+- `GET /api/coleta/veiculos` - Veículos disponíveis
+- `POST /api/coleta/retirar/{veiculo_id}` - Retirar veículo
+- `GET /api/coleta/ativa` - Coleta ativa
+- `POST /api/coleta/{id}/devolver` - Devolver veículo
+- `POST /api/coleta/{id}/upload-foto` - Upload foto
 
 ### Admin
-- `POST /api/admin/usuarios` - Criar usuário
-- `GET /api/admin/usuarios` - Listar usuários
-- `GET /api/admin/relatorios` - Gerar relatório
+- `GET/POST /api/admin/usuarios` - CRUD usuários
+- `GET/POST /api/admin/veiculos` - CRUD veículos
+- `GET /api/admin/relatorios` - Relatórios
+- `GET /api/admin/fotos/{usuario_id}` - Fotos por motorista
 
 ## 🆘 Troubleshooting
 
-### Erro de conexão com banco de dados
+**Containers não sobem:**
 ```bash
-# Verificar arquivo .env
-# DATABASE_URL deve estar correto
+docker compose logs
+docker compose down
+docker volume rm app_frota_postgres_data
+docker compose up -d --build
 ```
 
-### Upload de fotos falha
+**Erro de autenticação PostgreSQL:**
 ```bash
-# Verificar permissões da pasta uploads
+# Verificar .env e docker-compose.yml (senha deve ser igual)
+docker compose down
+docker volume rm app_frota_postgres_data
+docker compose up -d
+```
+
+**Nginx erro 502:**
+```bash
+docker compose ps  # Verificar se API está healthy
+curl http://localhost:8000/health
+docker compose logs api --tail 50
+```
+
+**Sem cadeado HTTPS:**
+- Limpar cache do navegador (Ctrl+Shift+Delete)
+- Verificar DNS Cloudflare com nuvem laranja (proxied)
+- Ativar "Always Use HTTPS" no Cloudflare
+- Testar em modo anônimo
+
+**Upload de fotos falha:**
+```bash
 chmod 755 uploads
+docker compose restart api
 ```
-
-### App não sincroniza offline
-```bash
-# Verificar se Service Worker está registrado
-# Verificar console do navegador para erros
-```
-
-## 📱 Para Android
-
-1. **Instalar como Progressive Web App**:
-   - Abrir em Chrome/Firefox
-   - Menu → Instalar / Adicionar à tela inicial
-   - Funcionará como app nativo
-
-2. **Usar WebView nativa** (opcional):
-   - Criar app Android nativo que carrega a URL em WebView
-
-## 📞 Suporte
-
-Para dúvidas ou problemas, revisar:
-- Logs: `docker logs app-frota`
-- API Docs: `http://seu-dominio/docs`
-- Console do navegador (F12)
 
 ## 📄 Licença
 
-MIT License - Livre para usar e modificar
+MIT License - livre para uso comercial e pessoal.
+
+---
+
+**App Frota DPL** - Sistema de Gestão de Frota  
+Desenvolvido com FastAPI + PostgreSQL + Docker
