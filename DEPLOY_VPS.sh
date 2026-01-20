@@ -49,7 +49,7 @@ ENVIRONMENT=production
 DEBUG=False
 
 # Database
-DATABASE_URL=postgresql://frota_user:senha_super_segura_mude_aqui@db:5432/frota_db
+DATABASE_URL=postgresql://frota_user:FrotaBD2026#Secure!@db:5432/frota_db
 
 # Security (keep current SECRET_KEY or generate new)
 SECRET_KEY=_uvlaPZAtgJrJluydAO_umOm0sdk1FHCA_27cgDixY3tc2hW6T3PHesxU4482ePtP41ZTizZYxWy0ncHHFTRFA

@@ -36,7 +36,7 @@ services:
     environment:
       - POSTGRES_DB=frota_db
       - POSTGRES_USER=frota_user
-      - POSTGRES_PASSWORD=senha_super_segura_mude_aqui
+      - POSTGRES_PASSWORD=FrotaBD2026#Secure!
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
