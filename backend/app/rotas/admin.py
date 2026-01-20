@@ -213,6 +213,7 @@ def listar_fotos_usuario(usuario_id: str, current_admin: Usuario = Depends(get_c
             criado_em_br = criado_em_utc.astimezone(tz)
             data = criado_em_br.date().isoformat()
             criado_em_str = criado_em_br.isoformat()
+            logger.info(f"[FOTO DEBUG] ID={foto.id} UTC={foto.criado_em} BR={criado_em_br} DATA={data}")
         else:
             data = "sem-data"
             criado_em_str = None
