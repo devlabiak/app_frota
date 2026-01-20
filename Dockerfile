@@ -27,5 +27,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# Comando para inicializar o banco e rodar a API
-CMD ["sh", "-c", "python init_db_prod.py && uvicorn main:app --host 0.0.0.0 --port 8000"]
+# Comando para inicializar o banco e rodar a API com múltiplos workers
+CMD ["sh", "-c", "python init_db_prod.py && uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4 --log-level info"]

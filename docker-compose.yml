@@ -18,8 +18,17 @@ services:
       - ./uploads:/app/uploads
       - ./data:/app/data
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
     networks:
       - app-network
     healthcheck:
@@ -37,9 +46,18 @@ services:
       - POSTGRES_DB=frota_db
       - POSTGRES_USER=frota_user
       - POSTGRES_PASSWORD=FrotaBD2026#Secure!
+      - POSTGRES_MAX_CONNECTIONS=100
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
     networks:
       - app-network
     healthcheck:
@@ -47,6 +65,23 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    command: >
+      postgres
+      -c shared_buffers=256MB
+      -c effective_cache_size=1GB
+      -c maintenance_work_mem=64MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c work_mem=2621kB
+      -c min_wal_size=1GB
+      -c max_wal_size=4GB
+      -c max_worker_processes=4
+      -c max_parallel_workers_per_gather=2
+      -c max_parallel_workers=4
+      -c max_parallel_maintenance_workers=2
 
 volumes:
   postgres_data:
