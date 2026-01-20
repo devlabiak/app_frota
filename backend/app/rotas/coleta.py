@@ -386,7 +386,7 @@ async def upload_foto(coleta_id: int, file: UploadFile = File(...), current_user
     
     # Salvar arquivo com nome: {data}_{hora}_{coleta_id}_{arquivo}
     tz = pytz.timezone('America/Sao_Paulo')
-    agora_sp = datetime.now(tz)  # horário local SP
+    agora_sp = datetime.now(tz)  # horário local SP para o nome do arquivo
     data_hora = agora_sp.strftime("%Y%m%d_%H%M%S")
     etapa = "saida" if coleta.ativo else "retorno"
     
@@ -408,9 +408,8 @@ async def upload_foto(coleta_id: int, file: UploadFile = File(...), current_user
     
     # Salvar no banco com caminho relativo (usuario_id/arquivo)
     caminho_relativo = f"{current_user.usuario_id}/{filename}"
-    # Persistir em UTC derivado do horário de SP para manter a mesma data
-    # Remove timezone para salvar como naive UTC no banco
-    agora_utc = agora_sp.astimezone(pytz.utc).replace(tzinfo=None)
+    # Salvar timestamp UTC REAL do servidor (não converter de SP!)
+    agora_utc = datetime.utcnow()
     nova_foto = Foto(coleta_id=coleta_id, etapa=etapa, caminho=caminho_relativo, criado_em=agora_utc)
     
     try:
