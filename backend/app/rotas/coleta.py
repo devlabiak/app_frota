@@ -408,7 +408,9 @@ async def upload_foto(coleta_id: int, file: UploadFile = File(...), current_user
     
     # Salvar no banco com caminho relativo (usuario_id/arquivo)
     caminho_relativo = f"{current_user.usuario_id}/{filename}"
-    nova_foto = Foto(coleta_id=coleta_id, etapa=etapa, caminho=caminho_relativo, criado_em=agora.replace(tzinfo=None))
+    # Persistir em UTC para evitar regressão de data ao converter para Brasil (-3h)
+    agora_utc = datetime.utcnow().replace(tzinfo=pytz.utc)
+    nova_foto = Foto(coleta_id=coleta_id, etapa=etapa, caminho=caminho_relativo, criado_em=agora_utc)
     
     try:
         db.add(nova_foto)
