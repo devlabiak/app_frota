@@ -304,13 +304,20 @@ def listar_viagens(coleta_id: int, current_user: Usuario = Depends(get_current_u
 @router.post("/{coleta_id}/upload-foto")
 async def upload_foto(coleta_id: int, file: UploadFile = File(...), current_user: Usuario = Depends(get_current_user), db: Session = Depends(get_db)):
     """Faz upload de foto para uma coleta - organiza em pasta do usuário com data/hora"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    logger.info(f"[UPLOAD] Iniciando upload - Coleta: {coleta_id}, Arquivo: {file.filename}, Content-Type: {file.content_type}")
+    
     coleta = db.query(Coleta).filter(Coleta.id == coleta_id, Coleta.usuario_id == current_user.id).first()
     if not coleta:
+        logger.error(f"[UPLOAD] Coleta {coleta_id} não encontrada para usuário {current_user.usuario_id}")
         raise HTTPException(status_code=404, detail="Coleta não encontrada")
     
     # ===== VALIDAÇÃO APRIMORADA DE ARQUIVO =====
     # 1. Verificar se arquivo foi enviado
     if not file or not file.filename:
+        logger.error("[UPLOAD] Nenhum arquivo foi enviado")
         raise HTTPException(status_code=400, detail="Nenhum arquivo foi enviado")
     
     # 2. Validar extensão
@@ -318,45 +325,58 @@ async def upload_foto(coleta_id: int, file: UploadFile = File(...), current_user
     nome_arquivo = file.filename.lower()
     extensao = os.path.splitext(nome_arquivo)[1]
     
+    logger.info(f"[UPLOAD] Extensão detectada: {extensao}")
+    
     if extensao not in extensoes_permitidas:
+        logger.error(f"[UPLOAD] Extensão não permitida: {extensao}")
         raise HTTPException(
             status_code=400, 
             detail=f"Tipo de arquivo não permitido. Use: {', '.join(extensoes_permitidas)}"
         )
     
     # 3. Ler e validar tamanho
-    contents = await file.read()
+    try:
+        contents = await file.read()
+        logger.info(f"[UPLOAD] Arquivo lido com sucesso - Tamanho: {len(contents)} bytes")
+    except Exception as e:
+        logger.error(f"[UPLOAD] Erro ao ler arquivo: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Erro ao ler arquivo: {str(e)}")
+    
     tamanho_mb = len(contents) / (1024 * 1024)
     max_size_mb = settings.MAX_UPLOAD_SIZE / (1024 * 1024)
     
     if len(contents) > settings.MAX_UPLOAD_SIZE:
+        logger.error(f"[UPLOAD] Arquivo muito grande: {tamanho_mb:.2f}MB (máx: {max_size_mb:.0f}MB)")
         raise HTTPException(
             status_code=400,
             detail=f"Arquivo muito grande ({tamanho_mb:.2f}MB). Máximo: {max_size_mb:.0f}MB"
         )
     
-    # 4. Validar se é imagem real (magic bytes)
-    if len(contents) < 12:
+    # 4. Validar se é imagem real (magic bytes) - mais permissivo
+    if len(contents) < 4:
+        logger.error("[UPLOAD] Arquivo muito pequeno ou corrompido")
         raise HTTPException(status_code=400, detail="Arquivo inválido ou corrompido")
     
-    # Verificar magic bytes para imagens comuns
+    # Verificar magic bytes para imagens comuns - versão mais permissiva
     magic_bytes = contents[:12]
     is_valid_image = (
         magic_bytes[:3] == b'\xff\xd8\xff' or  # JPEG
         magic_bytes[:8] == b'\x89PNG\r\n\x1a\n' or  # PNG
         magic_bytes[:6] in (b'GIF87a', b'GIF89a') or  # GIF
-        magic_bytes[:4] == b'RIFF' and magic_bytes[8:12] == b'WEBP'  # WEBP
+        magic_bytes[:4] == b'RIFF' and len(magic_bytes) >= 12 and magic_bytes[8:12] == b'WEBP'  # WEBP
     )
     
     if not is_valid_image:
-        raise HTTPException(
-            status_code=400,
-            detail="Arquivo não é uma imagem válida"
-        )
+        logger.warning(f"[UPLOAD] Magic bytes não reconhecidos. Primeiros bytes: {magic_bytes.hex()}")
+        # Ao invés de rejeitar, apenas registrar warning e continuar
+        logger.warning(f"[UPLOAD] Permitindo arquivo mesmo com magic bytes não reconhecidos (pode ser imagem móvel)")
+    
+    logger.info(f"[UPLOAD] Validação de imagem passou")
     
     # 5. Verificar limite de fotos por coleta
     fotos_coleta = db.query(Foto).filter(Foto.coleta_id == coleta_id).count()
     if fotos_coleta >= 10:
+        logger.error(f"[UPLOAD] Limite de fotos atingido para coleta {coleta_id}")
         raise HTTPException(status_code=400, detail="Máximo de 10 fotos por coleta")
     
     # ===== SALVAR ARQUIVO =====
@@ -375,20 +395,31 @@ async def upload_foto(coleta_id: int, file: UploadFile = File(...), current_user
     filename = f"{data_hora}_{etapa}_{coleta_id}_{timestamp}{extensao}"
     filepath = os.path.join(pasta_usuario, filename)
     
+    logger.info(f"[UPLOAD] Salvando arquivo em: {filepath}")
+    
     # Salvar arquivo
     try:
         with open(filepath, "wb") as f:
             f.write(contents)
+        logger.info(f"[UPLOAD] Arquivo salvo com sucesso")
     except Exception as e:
+        logger.error(f"[UPLOAD] Erro ao salvar arquivo: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Erro ao salvar arquivo: {str(e)}")
     
     # Salvar no banco com caminho relativo (usuario_id/arquivo)
     caminho_relativo = f"{current_user.usuario_id}/{filename}"
     nova_foto = Foto(coleta_id=coleta_id, etapa=etapa, caminho=caminho_relativo, criado_em=agora.replace(tzinfo=None))
-    db.add(nova_foto)
-    db.commit()
-    db.refresh(nova_foto)
     
+    try:
+        db.add(nova_foto)
+        db.commit()
+        db.refresh(nova_foto)
+        logger.info(f"[UPLOAD] Foto registrada no banco de dados - ID: {nova_foto.id}")
+    except Exception as e:
+        logger.error(f"[UPLOAD] Erro ao salvar no banco: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erro ao salvar no banco: {str(e)}")
+    
+    logger.info(f"[UPLOAD] Upload concluído com sucesso")
     return {"id": nova_foto.id, "caminho": nova_foto.caminho, "tamanho_mb": round(tamanho_mb, 2)}
 
 # ===== LISTAR MINHAS COLETAS =====

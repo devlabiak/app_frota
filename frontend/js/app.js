@@ -3,26 +3,54 @@ let coleta = null;
 
 // NOTIFICAÇÕES
 function showNotification(message, type = 'info') {
+    // Criar container de notificações se não existir
+    let container = document.getElementById('notifications-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'notifications-container';
+        container.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 2000; display: flex; flex-direction: column; gap: 10px; max-width: 400px;';
+        document.body.appendChild(container);
+    }
+    
     const notification = document.createElement('div');
     notification.className = `notification ${type}`;
     notification.textContent = message;
-    document.body.appendChild(notification);
+    notification.style.cssText = 'position: relative; top: auto; right: auto;';
+    container.appendChild(notification);
     
     setTimeout(() => {
         notification.remove();
+        // Remover container se vazio
+        if (container.children.length === 0) {
+            container.remove();
+        }
     }, 5000);
 }
 
 function atualizarBotaoFoto(gridId, idx, file) {
     const grid = document.getElementById(gridId);
-    const botao = grid.children[idx];
-    
+    if (!grid) return;
+    const statusButtons = grid.querySelectorAll('.photo-status');
+    const inputs = grid.querySelectorAll('input[type="file"]');
+    const btn = statusButtons[idx];
+    const input = inputs[idx];
+    if (!btn || !input) return;
+
     if (file) {
-        botao.classList.add('filled');
-        botao.title = file.name;
+        btn.classList.remove('empty');
+        btn.classList.add('filled');
+        btn.innerHTML = '<span class="icon">📷</span><span class="label">Ver foto</span>';
+        try {
+            const url = URL.createObjectURL(file);
+            btn.onclick = () => openFotoModal(url);
+        } catch (e) {
+            btn.onclick = null;
+        }
     } else {
-        botao.classList.remove('filled');
-        botao.title = '';
+        btn.classList.remove('filled');
+        btn.classList.add('empty');
+        btn.innerHTML = '<span class="icon">📷</span><span class="label">Carregar foto</span>';
+        btn.onclick = () => input && input.click();
     }
 }
 
@@ -37,6 +65,15 @@ function showWelcome(nome) {
     }, 2000);
 }
 
+function atualizarDisplayUsuario() {
+    if (user && user.nome) {
+        const display1 = document.getElementById('userDisplay');
+        const display2 = document.getElementById('userDisplay2');
+        if (display1) display1.textContent = `👤 ${user.nome}`;
+        if (display2) display2.textContent = `👤 ${user.nome}`;
+    }
+}
+
 // INIT
 document.addEventListener('DOMContentLoaded', async () => {
     const token = localStorage.getItem('token');
@@ -46,6 +83,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         user = JSON.parse(userData);
         api.setToken(token);
         await mostrarTela();
+        atualizarDisplayUsuario();
     } else {
         mostrarLogin();
     }
@@ -68,6 +106,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.querySelectorAll('.photo-input-devolucao').forEach((input, idx) => {
         input.addEventListener('change', (e) => atualizarBotaoFoto('photosGridDevolucao', idx, e.target.files[0]));
     });
+
+    // Inicializar botões para abrir o seletor/câmera
+    const retiradaGrid = document.getElementById('photosGridRetirada');
+    if (retiradaGrid) {
+        retiradaGrid.querySelectorAll('.photo-row').forEach((row) => {
+            const input = row.querySelector('input[type="file"]');
+            const btn = row.querySelector('.photo-status');
+            if (btn && input) btn.onclick = () => input.click();
+        });
+    }
+    const devolucaoGrid = document.getElementById('photosGridDevolucao');
+    if (devolucaoGrid) {
+        devolucaoGrid.querySelectorAll('.photo-row').forEach((row) => {
+            const input = row.querySelector('input[type="file"]');
+            const btn = row.querySelector('.photo-status');
+            if (btn && input) btn.onclick = () => input.click();
+        });
+    }
 });
 
 async function login(e) {
@@ -90,6 +146,7 @@ async function login(e) {
         console.log('Mostrando tela...');
         showWelcome(res.usuario_nome);
         await mostrarTela();
+        atualizarDisplayUsuario();
     } catch (e) {
         console.error('Erro login:', e);
         document.getElementById('loginError').textContent = 'Erro: ' + e.message;
@@ -139,6 +196,18 @@ async function mostrarTela() {
 function mostraRet() {
     document.getElementById('painelRetirada').style.display = 'block';
     document.getElementById('painelDevolucao').style.display = 'none';
+    
+    // Limpar fotos carregadas anteriormente
+    document.querySelectorAll('.photo-input').forEach(input => {
+        input.value = '';
+    });
+    document.querySelectorAll('#photosGridRetirada .photo-status').forEach((btn, idx) => {
+        btn.classList.remove('filled');
+        btn.classList.add('empty');
+        btn.innerHTML = '<span class="icon">📷</span><span class="label">Carregar foto</span>';
+        const input = btn.parentElement.querySelector('input[type="file"]');
+        if (input) btn.onclick = () => input.click();
+    });
 }
 
 function mostraDevol() {
@@ -173,28 +242,48 @@ async function retirar(e) {
     
     if (!veiculo_id) return alert('Selecione um veículo');
     
+    // Validar se há pelo menos uma foto
+    const fotoInputs = document.querySelectorAll('.photo-input');
+    let arquivosSelecionados = 0;
+    for (let input of fotoInputs) {
+        if (input.files && input.files[0]) {
+            arquivosSelecionados++;
+        }
+    }
+    
+    if (arquivosSelecionados === 0) {
+        showNotification('⚠️ Selecione pelo menos uma foto para a retirada!', 'error');
+        return;
+    }
+    
     try {
         console.log('Retirar:', { veiculo_id, km, obs });
         coleta = await api.retirar(veiculo_id, km, obs);
         console.log('Coleta retornada:', coleta);
         
         // Fazer upload das fotos da retirada
-        const fotoInputs = document.querySelectorAll('.photo-input');
         let fotosUpload = 0;
         let fotosErro = 0;
         
+        console.log(`[RETIRADA] Encontradas ${fotoInputs.length} inputs de foto, ${arquivosSelecionados} com arquivos`);
+        
         for (let input of fotoInputs) {
+            console.log(`[RETIRADA] Verificando input:`, input.id, `tem ${input.files ? input.files.length : 0} arquivo(s)`);
             if (input.files && input.files[0]) {
+                const arquivo = input.files[0];
+                console.log(`[RETIRADA] Tentando enviar arquivo:`, arquivo.name, `(${arquivo.size} bytes, ${arquivo.type})`);
                 try {
-                    await api.uploadFoto(coleta.id, input.files[0]);
+                    console.log(`[RETIRADA] Chamando api.uploadFoto(${coleta.id}, ${arquivo.name})`);
+                    const resultado = await api.uploadFoto(coleta.id, arquivo);
+                    console.log(`[RETIRADA] Resultado:`, resultado);
                     fotosUpload++;
-                    showNotification(`📸 ${input.files[0].name} carregado com sucesso!`, 'success');
-                    console.log('Foto enviada:', input.files[0].name);
+                    console.log('Foto enviada:', arquivo.name);
                 } catch (e) {
                     fotosErro++;
-                    showNotification(`Erro ao enviar ${input.files[0].name}`, 'error');
-                    console.error('Erro ao enviar foto:', e);
+                    console.error('Erro ao enviar foto:', arquivo.name, e);
                 }
+            } else {
+                console.log(`[RETIRADA] Input ${input.id} vazio`);
             }
         }
         
@@ -239,6 +328,20 @@ async function devolver(e) {
         return alert('KM final inválido');
     }
     
+    // Validar se há pelo menos uma foto
+    const fotoInputs = document.querySelectorAll('.photo-input-devolucao');
+    let arquivosSelecionados = 0;
+    for (let input of fotoInputs) {
+        if (input.files && input.files[0]) {
+            arquivosSelecionados++;
+        }
+    }
+    
+    if (arquivosSelecionados === 0) {
+        showNotification('⚠️ Selecione pelo menos uma foto para a devolução!', 'error');
+        return;
+    }
+    
     if (!confirm('Confirmar devolução?')) return;
     
     try {
@@ -247,22 +350,28 @@ async function devolver(e) {
         console.log('Devolução realizada:', res);
         
         // Fazer upload das fotos
-        const fotoInputs = document.querySelectorAll('.photo-input-devolucao');
         let fotosUpload = 0;
         let fotosErro = 0;
         
+        console.log(`[DEVOLUÇÃO] Encontradas ${fotoInputs.length} inputs de foto, ${arquivosSelecionados} com arquivos`);
+        
         for (let input of fotoInputs) {
+            console.log(`[DEVOLUÇÃO] Verificando input:`, input.id, `tem ${input.files ? input.files.length : 0} arquivo(s)`);
             if (input.files && input.files[0]) {
+                const arquivo = input.files[0];
+                console.log(`[DEVOLUÇÃO] Tentando enviar arquivo:`, arquivo.name, `(${arquivo.size} bytes, ${arquivo.type})`);
                 try {
-                    await api.uploadFoto(coleta.id, input.files[0]);
+                    console.log(`[DEVOLUÇÃO] Chamando api.uploadFoto(${coleta.id}, ${arquivo.name})`);
+                    const resultado = await api.uploadFoto(coleta.id, arquivo);
+                    console.log(`[DEVOLUÇÃO] Resultado:`, resultado);
                     fotosUpload++;
-                    showNotification(`📸 ${input.files[0].name} carregado com sucesso!`, 'success');
-                    console.log('Foto enviada:', input.files[0].name);
+                    console.log('Foto enviada:', arquivo.name);
                 } catch (e) {
                     fotosErro++;
-                    showNotification(`Erro ao enviar ${input.files[0].name}`, 'error');
-                    console.error('Erro ao enviar foto:', e);
+                    console.error('Erro ao enviar foto:', arquivo.name, e);
                 }
+            } else {
+                console.log(`[DEVOLUÇÃO] Input ${input.id} vazio`);
             }
         }
         
@@ -508,7 +617,16 @@ function renderizarFotosPorDia(dados) {
     let html = `<div class="fotos-header">Mostrando fotos de ${dados.usuario_nome} (${dados.usuario_id})</div>`;
     dados.fotos_por_dia.forEach(dia => {
         html += `<div class="foto-dia"><h3>${formatarData(dia.data)}</h3><div class="fotos-grid">`;
-        dia.fotos.forEach(foto => {
+        // Ordenar fotos por horário (menor -> maior)
+        const fotosOrdenadas = [...(dia.fotos || [])].sort((a, b) => {
+            const ta = a?.criado_em || a?.data_upload || 0;
+            const tb = b?.criado_em || b?.data_upload || 0;
+            const da = ta ? new Date(ta).getTime() : Number.MAX_SAFE_INTEGER;
+            const db = tb ? new Date(tb).getTime() : Number.MAX_SAFE_INTEGER;
+            return da - db;
+        });
+
+        fotosOrdenadas.forEach(foto => {
             const imgUrl = `${api.base}/uploads/${foto.caminho}`;
             const horario = formatarHora(foto.criado_em || foto.data_upload);
             const etapa = etapaLabel(foto.etapa);
@@ -580,10 +698,9 @@ async function carregarRelatorios() {
         });
         console.log('Dropdown preenchido com', usuariosDisponiveis.length, 'usuários');
         
-        // Carregar relatório geral
-        const rel = await api.relatorios();
-        relatorioData = rel.relatorio || [];
-        exibirRelatorios('dia');
+        // Carregar relatório padrão (Hoje)
+        console.log('Carregando relatório de hoje...');
+        await carregarRelatorioPeriodo('hoje');
     } catch (e) { 
         console.error('Erro em carregarRelatorios:', e);
         const container = document.getElementById('relatorio-container');
@@ -597,22 +714,15 @@ async function handleUsuarioChange() {
     const select = document.getElementById('filtroUsuario');
     usuarioSelecionado = select.value || null;
     
-    if (usuarioSelecionado) {
-        try {
-            const rel = await api.relatorioUsuario(usuarioSelecionado);
-            relatorioData = rel.uso_por_veiculo || [];
-            document.getElementById('relatorio-container').innerHTML = '';
-            exibirRelatorioUsuario(rel);
-        } catch (e) {
-            console.error(e);
-            document.getElementById('relatorio-container').innerHTML = '<p style="color: red;">Erro ao carregar dados do usuário</p>';
-        }
-    } else {
-        // Recarregar relatório geral
-        const rel = await api.relatorios();
-        relatorioData = rel.relatorio || [];
-        exibirRelatorios('dia');
-    }
+    console.log('Usuário selecionado mudou para:', usuarioSelecionado);
+    
+    // Recarregar o relatório do período ativo com o novo filtro de usuário
+    // Verificar qual botão está ativo
+    const botaoAtivo = document.querySelector('.periodo-btn.active');
+    const periodoAtivo = botaoAtivo ? botaoAtivo.getAttribute('data-period') : 'hoje';
+    
+    console.log('Recarregando relatório de período:', periodoAtivo);
+    await carregarRelatorioPeriodo(periodoAtivo);
 }
 
 function exibirRelatorioUsuario(dados) {
@@ -695,6 +805,369 @@ function switchRelatorioPeriodo(periodo) {
     exibirRelatorios(periodo);
 }
 
+function abrirFiltroPersonalizado() {
+    console.log('Abrindo filtro personalizado');
+    const filtroDiv = document.getElementById('filtroPersonalizadoDiv');
+    
+    if (filtroDiv) {
+        // Pré-preencher com datas padrão (últimos 30 dias)
+        const hoje = new Date();
+        const treintaDiasAtras = new Date(hoje.getTime() - 30 * 24 * 60 * 60 * 1000);
+        
+        document.getElementById('dataFim').value = hoje.toISOString().split('T')[0];
+        document.getElementById('dataInicio').value = treintaDiasAtras.toISOString().split('T')[0];
+        
+        // Mostrar o filtro
+        filtroDiv.style.display = 'grid';
+        console.log('Filtro personalizado aberto');
+    } else {
+        console.error('Elemento filtroPersonalizadoDiv não encontrado');
+    }
+}
+
+function fecharFiltroPersonalizado() {
+    const filtroDiv = document.getElementById('filtroPersonalizadoDiv');
+    if (filtroDiv) {
+        filtroDiv.style.display = 'none';
+        console.log('Filtro personalizado fechado');
+    }
+}
+
+async function carregarRelatorioPeriodo(periodo) {
+    try {
+        console.log('=== INICIANDO CARREGAMENTO DE RELATÓRIO ===');
+        console.log('Período selecionado:', periodo);
+        console.log('Usuário selecionado:', usuarioSelecionado);
+        
+        // Atualizar botões ativos usando data-period
+        console.log('Atualizando botões...');
+        document.querySelectorAll('.periodo-btn').forEach(btn => {
+            const periodo_btn = btn.getAttribute('data-period');
+            console.log('Botão:', periodo_btn, 'Match:', periodo_btn === periodo);
+            
+            if (periodo_btn === periodo) {
+                btn.classList.add('active');
+                console.log('  ✓ Adicionando classe active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+        
+        let dataInicio = null, dataFim = null;
+        
+        if (periodo === 'personalizado') {
+            dataInicio = document.getElementById('dataInicio').value;
+            dataFim = document.getElementById('dataFim').value;
+            
+            console.log('Período personalizado:', dataInicio, 'a', dataFim);
+            
+            if (!dataInicio || !dataFim) {
+                alert('Por favor, preencha ambas as datas');
+                return;
+            }
+        }
+        
+        console.log('Chamando API com periodo:', periodo, 'datas:', dataInicio, dataFim);
+        const rel = await api.relatorioPeriodo(periodo, dataInicio, dataFim);
+        console.log('Resposta da API:', rel);
+        console.log('Dados por veículo:', rel.por_veiculo);
+        console.log('Estatísticas gerais:', rel.estatisticas_gerais);
+        
+        // Se houver usuário selecionado, buscar dados específicos dele
+        if (usuarioSelecionado) {
+            console.log('Usuário selecionado, buscando dados específicos:', usuarioSelecionado);
+            
+            const relUsuario = await api.relatorioUsuario(usuarioSelecionado, periodo, dataInicio, dataFim);
+            console.log('Dados do usuário:', relUsuario);
+            
+            // Exibir relatório filtrado por usuário com veículos
+            exibirRelatorioPeriodoUsuario(relUsuario);
+        } else {
+            // Sem filtro de usuário, mostrar tudo
+            exibirRelatorioPeriodo(rel);
+        }
+        
+        // Fechar filtro personalizado se aberto
+        if (periodo === 'personalizado') {
+            fecharFiltroPersonalizado();
+        }
+    } catch (e) {
+        console.error('Erro ao carregar relatório:', e);
+        console.error('Stack:', e.stack);
+        document.getElementById('relatorio-container').innerHTML = 
+            '<p style="color: red;">Erro ao carregar relatório: ' + e.message + '</p>';
+    }
+}
+
+function exibirRelatorioPeriodo(dados) {
+    console.log('=== EXIBINDO RELATÓRIO ===');
+    console.log('Dados recebidos:', dados);
+    
+    const div = document.getElementById('relatorio-container');
+    if (!div) {
+        console.error('Elemento relatorio-container não encontrado!');
+        return;
+    }
+    
+    div.innerHTML = '';
+    
+    const periodo = dados.periodo;
+    const stats = dados.estatisticas_gerais;
+    
+    console.log('Período:', periodo);
+    console.log('Stats:', stats);
+    console.log('Por veículo count:', dados.por_veiculo ? dados.por_veiculo.length : 0);
+    
+    let html = `
+        <div class="relatorio-stats-container">
+            <div class="relatorio-periodo-info">
+                <p><strong>Período:</strong> ${formatarData(periodo.data_inicio)} a ${formatarData(periodo.data_fim)} (${periodo.dias} dias)</p>
+            </div>
+            <div class="relatorio-stats">
+                <div class="stat-box">
+                    <span class="stat-label">KM Total</span>
+                    <span class="stat-value">${stats.km_total.toFixed(2)} km</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-label">Usos</span>
+                    <span class="stat-value">${stats.total_usos}</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-label">Média KM/Dia</span>
+                    <span class="stat-value">${stats.media_km_por_dia.toFixed(2)} km</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-label">Veículos Ativos</span>
+                    <span class="stat-value">${stats.veiculos_ativos}</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-label">Motoristas Ativos</span>
+                    <span class="stat-value">${stats.motoristas_ativos}</span>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    html += '<h3>Por Veículo:</h3>';
+    console.log('Renderizando veículos...');
+    if (dados.por_veiculo && dados.por_veiculo.length > 0) {
+        console.log('Encontrados', dados.por_veiculo.length, 'veículos');
+        dados.por_veiculo.forEach((v, idx) => {
+            console.log(`  Veículo ${idx}: ${v.placa} - ${v.total_usos} usos, ${v.km_periodo} km`);
+            html += `
+                <div class="relatorio-card">
+                    <div class="relatorio-card-header">
+                        <strong>${v.placa}</strong>
+                        <span class="relatorio-marca">${v.marca} ${v.modelo}</span>
+                    </div>
+                    <div class="relatorio-card-details">
+                        <div class="detail-item">
+                            <span class="label">KM:</span>
+                            <span class="value">${v.km_periodo.toFixed(2)} km</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label">Usos:</span>
+                            <span class="value">${v.total_usos}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label">Média:</span>
+                            <span class="value">${v.media_km_por_uso.toFixed(2)} km/uso</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+    } else {
+        console.log('Nenhum dado de veículos encontrado');
+        html += '<p>Nenhum dado de veículos</p>';
+    }
+    
+    html += '<h3>Por Motorista:</h3>';
+    console.log('Renderizando motoristas...');
+    if (dados.por_motorista && dados.por_motorista.length > 0) {
+        console.log('Encontrados', dados.por_motorista.length, 'motoristas');
+        dados.por_motorista.forEach((m, idx) => {
+            console.log(`  Motorista ${idx}: ${m.usuario_id} - ${m.total_coletas} coletas, ${m.km_periodo} km`);
+            html += `
+                <div class="relatorio-card">
+                    <div class="relatorio-card-header">
+                        <strong>${m.usuario_id} - ${m.nome}</strong>
+                    </div>
+                    <div class="relatorio-card-details">
+                        <div class="detail-item">
+                            <span class="label">KM:</span>
+                            <span class="value">${m.km_periodo.toFixed(2)} km</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label">Coletas:</span>
+                            <span class="value">${m.total_coletas}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label">Média:</span>
+                            <span class="value">${m.media_km_por_coleta.toFixed(2)} km/coleta</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+    } else {
+        console.log('Nenhum dado de motoristas encontrado');
+        html += '<p>Nenhum dado de motoristas</p>';
+    }
+    
+    console.log('HTML gerado, tamanho:', html.length);
+    div.innerHTML = html;
+    console.log('Relatório renderizado com sucesso');
+}
+
+function exibirRelatorioPeriodoUsuario(dados) {
+    console.log('=== EXIBINDO RELATÓRIO FILTRADO POR USUÁRIO ===');
+    console.log('Dados:', dados);
+    
+    const div = document.getElementById('relatorio-container');
+    if (!div) {
+        console.error('Elemento relatorio-container não encontrado!');
+        return;
+    }
+    
+    div.innerHTML = '';
+    
+    const periodo = dados.periodo;
+    const stats = dados.estatisticas;
+    const usoPorDia = dados.uso_por_dia || [];
+    
+    let html = `
+        <div class="relatorio-stats-container">
+            <div class="relatorio-periodo-info">
+                <p><strong>📋 Relatório do Motorista:</strong> ${dados.usuario_id} - ${dados.usuario_nome}</p>
+                <p><strong>Período:</strong> ${formatarData(periodo.data_inicio)} a ${formatarData(periodo.data_fim)} (${periodo.dias} dias)</p>
+            </div>
+            <div class="relatorio-stats">
+                <div class="stat-box">
+                    <span class="stat-label">KM Total</span>
+                    <span class="stat-value">${stats.km_total.toFixed(2)} km</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-label">Total Coletas</span>
+                    <span class="stat-value">${stats.total_coletas}</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-label">Média KM/Coleta</span>
+                    <span class="stat-value">${stats.media_km_por_coleta.toFixed(2)} km</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-label">Média KM/Dia</span>
+                    <span class="stat-value">${stats.media_km_por_dia.toFixed(2)} km</span>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Mostrar uso por dia detalhado
+    html += '<h3 style="margin-top: 30px;">📅 Uso Diário Detalhado:</h3>';
+    if (usoPorDia && usoPorDia.length > 0) {
+        console.log('Renderizando', usoPorDia.length, 'dias de uso');
+        usoPorDia.forEach((dia, idx) => {
+            console.log(`  Dia ${idx}: ${dia.data} - ${dia.total_usos} usos, ${dia.km_total_dia} km`);
+            
+            html += `
+                <div class="dia-card">
+                    <div class="dia-header">
+                        <span class="dia-data">📆 ${formatarData(dia.data)}</span>
+                        <div class="dia-stats">
+                            <span class="dia-km">${dia.km_total_dia.toFixed(2)} km</span>
+                            <span class="dia-usos">${dia.total_usos} uso(s)</span>
+                        </div>
+                    </div>
+                    <div class="dia-usos">
+            `;
+            
+            dia.usos.forEach((uso, usoIdx) => {
+                console.log(`    Uso ${usoIdx}: ${uso.veiculo_placa} - ${uso.hora_saida} às ${uso.hora_chegada} - ${uso.km_rodado} km`);
+                console.log(`    Coleta ID:`, uso.coleta_id);
+                
+                // Verificar se é admin e se é o mesmo dia (somente mostrar botão no dia)
+                const hoje = new Date().toISOString().split('T')[0];
+                const diaUso = dia.data;
+                const isAdmin = user?.admin || false;
+                const podeEditar = isAdmin && (hoje === diaUso);
+                
+                console.log(`[DEBUG EDITAR KM] User:`, user);
+                console.log(`[DEBUG EDITAR KM] IsAdmin:`, isAdmin);
+                console.log(`[DEBUG EDITAR KM] Hoje:`, hoje, '| Dia uso:', diaUso);
+                console.log(`[DEBUG EDITAR KM] Pode editar:`, podeEditar);
+                console.log(`[DEBUG EDITAR KM] Coleta ID:`, uso.coleta_id);
+                
+                html += `
+                    <div class="uso-item">
+                        <div class="uso-veiculo">
+                            <strong>🚗 ${uso.veiculo_placa}</strong>
+                            <span class="uso-modelo">${uso.veiculo_marca} ${uso.veiculo_modelo}</span>
+                        </div>
+                        <div class="uso-horarios">
+                            <div class="horario-item">
+                                <span class="horario-label">🕐 Saída:</span>
+                                <span class="horario-valor">${uso.hora_saida}</span>
+                            </div>
+                            <div class="horario-item">
+                                <span class="horario-label">🕐 Chegada:</span>
+                                <span class="horario-valor">${uso.hora_chegada}</span>
+                            </div>
+                        </div>
+                        <div class="uso-km">
+                            <div class="km-item">
+                                <span class="km-label">KM Saída:</span>
+                                <span class="km-valor">${uso.km_retirada}</span>
+                            </div>
+                            <div class="km-item">
+                                <span class="km-label">KM Chegada:</span>
+                                <span class="km-valor">${uso.km_devolucao}</span>
+                            </div>
+                            <div class="km-item km-rodado">
+                                <span class="km-label">KM Rodado:</span>
+                                <span class="km-valor">${uso.km_rodado.toFixed(2)} km</span>
+                            </div>
+                        </div>
+                        ${podeEditar ? `<button class="btn btn-secondary btn-sm" onclick="editarKmUso(${uso.coleta_id}, ${uso.km_retirada}, ${uso.km_devolucao}, '${uso.veiculo_placa}')">✏️ Editar KM</button>` : ''}
+                    </div>
+                `;
+            });
+            
+            html += `
+                    </div>
+                </div>
+            `;
+        });
+    } else {
+        console.log('Nenhum uso encontrado no período');
+        html += '<p>Nenhum uso de veículo registrado no período.</p>';
+    }
+    
+    html += `
+        <div style="background: #fffbf0; padding: 15px; border-left: 4px solid #f9a825; border-radius: 6px; margin-top: 20px;">
+            <p style="margin: 0; color: #666;">
+                <strong>ℹ️ Informação:</strong> Este relatório mostra os usos diários detalhados do motorista selecionado.
+                Para ver todos os motoristas e veículos, selecione "Ver Todos os Veículos" no filtro acima.
+            </p>
+        </div>
+    `;
+    
+    div.innerHTML = html;
+}
+
+function formatarData(dataStr) {
+    if (!dataStr) return 'N/A';
+    const [ano, mes, dia] = dataStr.split('-');
+    return `${dia}/${mes}/${ano}`;
+}
+
+function switchRelatorioPeriodo(periodo) {
+    relatorioPeriodoAtivo = periodo;
+    document.querySelectorAll('.relatorio-tab-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    exibirRelatorios(periodo);
+}
+
 function exibirRelatorios(periodo) {
     const div = document.getElementById('relatorio-container');
     div.innerHTML = '';
@@ -747,4 +1220,44 @@ function exibirRelatorios(periodo) {
     `;
     
     div.innerHTML = html;
+}
+
+// ===== EDITAR KM (ADMIN) =====
+async function editarKmUso(coletaId, kmRetiradaAtual, kmDevolucaoAtual, placa) {
+    const novoKmRetirada = prompt(`Editar KM de Saída\nVeículo: ${placa}\nKM Atual: ${kmRetiradaAtual}`, kmRetiradaAtual);
+    if (novoKmRetirada === null) return; // Cancelado
+    
+    const novoKmDevolucao = prompt(`Editar KM de Chegada\nVeículo: ${placa}\nKM Atual: ${kmDevolucaoAtual}`, kmDevolucaoAtual);
+    if (novoKmDevolucao === null) return; // Cancelado
+    
+    const kmRet = parseFloat(novoKmRetirada);
+    const kmDev = parseFloat(novoKmDevolucao);
+    
+    if (isNaN(kmRet) || isNaN(kmDev)) {
+        alert('KM inválido! Use apenas números.');
+        return;
+    }
+    
+    if (kmDev < kmRet) {
+        alert('KM de chegada não pode ser menor que KM de saída!');
+        return;
+    }
+    
+    if (!confirm(`Confirmar alteração?\n\nSaída: ${kmRetiradaAtual} → ${kmRet}\nChegada: ${kmDevolucaoAtual} → ${kmDev}\nNovo KM rodado: ${(kmDev - kmRet).toFixed(2)} km`)) {
+        return;
+    }
+    
+    try {
+        showNotification('Atualizando KM...', 'info');
+        await api.editarKmColeta(coletaId, kmRet, kmDev);
+        showNotification('✅ KM atualizado com sucesso!', 'success');
+        
+        // Recarregar relatório do usuário
+        if (usuarioSelecionado) {
+            await handleUsuarioChange();
+        }
+    } catch (e) {
+        console.error('Erro ao editar KM:', e);
+        showNotification(`❌ Erro: ${e.message}`, 'error');
+    }
 }

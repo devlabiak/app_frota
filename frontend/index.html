@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+    
+    
     <!-- TELA LOGIN -->
     <div id="loginScreen" class="screen active">
         <img src="/wl.png" alt="WL Logo" class="login-logo-left">
@@ -32,7 +34,10 @@
     <div id="motoristaScreen" class="screen">
         <div class="header">
             <h1>🚙 Garagem</h1>
-            <button id="logoutBtn" class="btn btn-secondary">Sair</button>
+            <div class="user-info">
+                <span id="userDisplay" class="user-name"></span>
+                <button id="logoutBtn" class="btn btn-secondary">Sair</button>
+            </div>
         </div>
         <div class="container">
             <!-- PAINEL RETIRADA -->
@@ -56,26 +61,26 @@
                     <div class="form-group">
                         <label>Fotos (até 5)</label>
                         <div class="photos-grid" id="photosGridRetirada">
-                            <label class="photo-upload-btn" onclick="document.getElementById('photoInput0').click()">
-                                Adicionar foto
+                            <div class="photo-row">
                                 <input type="file" id="photoInput0" class="photo-input" accept="image/*">
-                            </label>
-                            <label class="photo-upload-btn" onclick="document.getElementById('photoInput1').click()">
-                                Adicionar foto
+                                <button type="button" class="photo-status empty"><span class="icon">📷</span><span class="label">Carregar foto</span></button>
+                            </div>
+                            <div class="photo-row">
                                 <input type="file" id="photoInput1" class="photo-input" accept="image/*">
-                            </label>
-                            <label class="photo-upload-btn" onclick="document.getElementById('photoInput2').click()">
-                                Adicionar foto
+                                <button type="button" class="photo-status empty"><span class="icon">📷</span><span class="label">Carregar foto</span></button>
+                            </div>
+                            <div class="photo-row">
                                 <input type="file" id="photoInput2" class="photo-input" accept="image/*">
-                            </label>
-                            <label class="photo-upload-btn" onclick="document.getElementById('photoInput3').click()">
-                                Adicionar foto
+                                <button type="button" class="photo-status empty"><span class="icon">📷</span><span class="label">Carregar foto</span></button>
+                            </div>
+                            <div class="photo-row">
                                 <input type="file" id="photoInput3" class="photo-input" accept="image/*">
-                            </label>
-                            <label class="photo-upload-btn" onclick="document.getElementById('photoInput4').click()">
-                                Adicionar foto
+                                <button type="button" class="photo-status empty"><span class="icon">📷</span><span class="label">Carregar foto</span></button>
+                            </div>
+                            <div class="photo-row">
                                 <input type="file" id="photoInput4" class="photo-input" accept="image/*">
-                            </label>
+                                <button type="button" class="photo-status empty"><span class="icon">📷</span><span class="label">Carregar foto</span></button>
+                            </div>
                         </div>
                     </div>
                     <button type="submit" class="btn btn-primary btn-full">Retirar Veículo</button>
@@ -115,26 +120,26 @@
                     <div class="form-group">
                         <label>Fotos da Devolução (até 5)</label>
                         <div class="photos-grid" id="photosGridDevolucao">
-                            <label class="photo-upload-btn" onclick="document.getElementById('photoInputDev0').click()">
-                                Adicionar foto
+                            <div class="photo-row">
                                 <input type="file" id="photoInputDev0" class="photo-input-devolucao" accept="image/*">
-                            </label>
-                            <label class="photo-upload-btn" onclick="document.getElementById('photoInputDev1').click()">
-                                Adicionar foto
+                                <button type="button" class="photo-status empty"><span class="icon">📷</span><span class="label">Carregar foto</span></button>
+                            </div>
+                            <div class="photo-row">
                                 <input type="file" id="photoInputDev1" class="photo-input-devolucao" accept="image/*">
-                            </label>
-                            <label class="photo-upload-btn" onclick="document.getElementById('photoInputDev2').click()">
-                                Adicionar foto
+                                <button type="button" class="photo-status empty"><span class="icon">📷</span><span class="label">Carregar foto</span></button>
+                            </div>
+                            <div class="photo-row">
                                 <input type="file" id="photoInputDev2" class="photo-input-devolucao" accept="image/*">
-                            </label>
-                            <label class="photo-upload-btn" onclick="document.getElementById('photoInputDev3').click()">
-                                Adicionar foto
+                                <button type="button" class="photo-status empty"><span class="icon">📷</span><span class="label">Carregar foto</span></button>
+                            </div>
+                            <div class="photo-row">
                                 <input type="file" id="photoInputDev3" class="photo-input-devolucao" accept="image/*">
-                            </label>
-                            <label class="photo-upload-btn" onclick="document.getElementById('photoInputDev4').click()">
-                                Adicionar foto
+                                <button type="button" class="photo-status empty"><span class="icon">📷</span><span class="label">Carregar foto</span></button>
+                            </div>
+                            <div class="photo-row">
                                 <input type="file" id="photoInputDev4" class="photo-input-devolucao" accept="image/*">
-                            </label>
+                                <button type="button" class="photo-status empty"><span class="icon">📷</span><span class="label">Carregar foto</span></button>
+                            </div>
                         </div>
                     </div>
                     <button type="submit" class="btn btn-primary btn-full">Devolver Veículo</button>
@@ -147,7 +152,10 @@
     <div id="adminScreen" class="screen">
         <div class="header">
             <h1>⚙️ Admin</h1>
-            <button id="logoutBtn2" class="btn btn-secondary">Sair</button>
+            <div class="user-info">
+                <span id="userDisplay2" class="user-name"></span>
+                <button id="logoutBtn2" class="btn btn-secondary">Sair</button>
+            </div>
         </div>
         <div class="container">
             <div class="tabs">
@@ -233,12 +241,30 @@
                         </div>
                     </div>
 
-                    <div class="relatorio-tabs">
-                        <button class="relatorio-tab-btn active" onclick="switchRelatorioPeriodo('dia')">📅 Hoje</button>
-                        <button class="relatorio-tab-btn" onclick="switchRelatorioPeriodo('semana')">📆 Semana</button>
-                        <button class="relatorio-tab-btn" onclick="switchRelatorioPeriodo('mes')">📈 Mês</button>
-                        <button class="relatorio-tab-btn" onclick="switchRelatorioPeriodo('total')">📊 Total</button>
+                    <div class="relatorio-periodo-filter">
+                        <label>Período de Análise:</label>
+                        <div class="periodo-buttons">
+                            <button class="periodo-btn active" data-period="hoje" onclick="carregarRelatorioPeriodo('hoje')">📆 Hoje</button>
+                            <button class="periodo-btn" data-period="semana" onclick="carregarRelatorioPeriodo('semana')">📅 Última Semana</button>
+                            <button class="periodo-btn" data-period="mes" onclick="carregarRelatorioPeriodo('mes')">📊 Último Mês</button>
+                            <button class="periodo-btn" data-period="personalizado" onclick="abrirFiltroPersonalizado()">🔍 Personalizado</button>
+                        </div>
                     </div>
+
+                    <!-- Filtro Personalizado (oculto por padrão) -->
+                    <div id="filtroPersonalizadoDiv" style="display:none;" class="filtro-personalizado">
+                        <div class="filter-group">
+                            <label for="dataInicio">Data Início:</label>
+                            <input type="date" id="dataInicio">
+                        </div>
+                        <div class="filter-group">
+                            <label for="dataFim">Data Fim:</label>
+                            <input type="date" id="dataFim">
+                        </div>
+                        <button onclick="carregarRelatorioPeriodo('personalizado')" class="btn btn-primary">Buscar</button>
+                        <button onclick="fecharFiltroPersonalizado()" class="btn btn-secondary">Cancelar</button>
+                    </div>
+
                     <div id="relatorio-container"></div>
                 </div>
             </div>
