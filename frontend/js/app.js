@@ -375,7 +375,7 @@ async function devolver(e) {
             }
         }
         
-        // Resetar formulário e limpar estado DEPOIS de fazer upload
+        coleta = null;
         document.getElementById('formDevolucao').reset();
         
         // Limpar estado dos botões de foto após upload
@@ -385,7 +385,6 @@ async function devolver(e) {
             btn.innerHTML = '<span class="icon">📷</span><span class="label">Carregar foto</span>';
         });
         
-        coleta = null;
         mostraRet();
         await carregarVeiculos();
         
