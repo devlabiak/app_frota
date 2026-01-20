@@ -208,9 +208,9 @@ def listar_fotos_usuario(usuario_id: str, current_admin: Usuario = Depends(get_c
     for foto, coleta in resultados:
         # Converter UTC para Brasil antes de extrair a data
         if foto.criado_em:
-            criado_em_br = foto.criado_em.replace(tzinfo=pytz.utc).astimezone(tz)
+            # Tratar criado_em como horário local de SP (sem converter a partir de UTC)
+            criado_em_br = foto.criado_em.replace(tzinfo=tz)
             data = criado_em_br.date().isoformat()
-            # Retornar ISO com offset (-03:00) para o front já receber em horário de SP
             criado_em_str = criado_em_br.isoformat()
         else:
             data = "sem-data"
