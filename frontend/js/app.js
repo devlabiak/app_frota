@@ -242,11 +242,13 @@ async function retirar(e) {
     
     if (!veiculo_id) return alert('Selecione um veículo');
     
-    // Validar se há pelo menos uma foto
+    // Validar se há pelo menos uma foto e guardar os arquivos em memória
     const fotoInputs = document.querySelectorAll('.photo-input');
+    const arquivos = []; // GUARDAR ARQUIVOS AQUI ANTES DE FAZER QUALQUER COISA
     let arquivosSelecionados = 0;
     for (let input of fotoInputs) {
         if (input.files && input.files[0]) {
+            arquivos.push(input.files[0]); // Guardar arquivo em memória
             arquivosSelecionados++;
         }
     }
@@ -261,29 +263,23 @@ async function retirar(e) {
         coleta = await api.retirar(veiculo_id, km, obs);
         console.log('Coleta retornada:', coleta);
         
-        // Fazer upload das fotos da retirada
+        // Fazer upload das fotos da retirada (usando arquivos guardados na memória)
         let fotosUpload = 0;
         let fotosErro = 0;
         
-        console.log(`[RETIRADA] Encontradas ${fotoInputs.length} inputs de foto, ${arquivosSelecionados} com arquivos`);
+        console.log(`[RETIRADA] Encontradas ${arquivos.length} arquivo(s) na memória`);
         
-        for (let input of fotoInputs) {
-            console.log(`[RETIRADA] Verificando input:`, input.id, `tem ${input.files ? input.files.length : 0} arquivo(s)`);
-            if (input.files && input.files[0]) {
-                const arquivo = input.files[0];
-                console.log(`[RETIRADA] Tentando enviar arquivo:`, arquivo.name, `(${arquivo.size} bytes, ${arquivo.type})`);
-                try {
-                    console.log(`[RETIRADA] Chamando api.uploadFoto(${coleta.id}, ${arquivo.name})`);
-                    const resultado = await api.uploadFoto(coleta.id, arquivo);
-                    console.log(`[RETIRADA] Resultado:`, resultado);
-                    fotosUpload++;
-                    console.log('Foto enviada:', arquivo.name);
-                } catch (e) {
-                    fotosErro++;
-                    console.error('Erro ao enviar foto:', arquivo.name, e);
-                }
-            } else {
-                console.log(`[RETIRADA] Input ${input.id} vazio`);
+        for (let arquivo of arquivos) {
+            console.log(`[RETIRADA] Tentando enviar arquivo:`, arquivo.name, `(${arquivo.size} bytes, ${arquivo.type})`);
+            try {
+                console.log(`[RETIRADA] Chamando api.uploadFoto(${coleta.id}, ${arquivo.name})`);
+                const resultado = await api.uploadFoto(coleta.id, arquivo);
+                console.log(`[RETIRADA] Resultado:`, resultado);
+                fotosUpload++;
+                console.log('Foto enviada:', arquivo.name);
+            } catch (e) {
+                fotosErro++;
+                console.error('Erro ao enviar foto:', arquivo.name, e);
             }
         }
         
@@ -342,6 +338,14 @@ async function devolver(e) {
         return;
     }
     
+    // Guardar arquivos em memória ANTES de fazer qualquer coisa
+    const arquivos = [];
+    for (let input of fotoInputs) {
+        if (input.files && input.files[0]) {
+            arquivos.push(input.files[0]);
+        }
+    }
+    
     if (!confirm('Confirmar devolução?')) return;
     
     try {
@@ -349,29 +353,23 @@ async function devolver(e) {
         const res = await api.devolver(coleta.id, km, obs);
         console.log('Devolução realizada:', res);
         
-        // Fazer upload das fotos
+        // Fazer upload das fotos (usando arquivos guardados em memória)
         let fotosUpload = 0;
         let fotosErro = 0;
         
-        console.log(`[DEVOLUÇÃO] Encontradas ${fotoInputs.length} inputs de foto, ${arquivosSelecionados} com arquivos`);
+        console.log(`[DEVOLUÇÃO] Encontrados ${arquivos.length} arquivo(s) na memória`);
         
-        for (let input of fotoInputs) {
-            console.log(`[DEVOLUÇÃO] Verificando input:`, input.id, `tem ${input.files ? input.files.length : 0} arquivo(s)`);
-            if (input.files && input.files[0]) {
-                const arquivo = input.files[0];
-                console.log(`[DEVOLUÇÃO] Tentando enviar arquivo:`, arquivo.name, `(${arquivo.size} bytes, ${arquivo.type})`);
-                try {
-                    console.log(`[DEVOLUÇÃO] Chamando api.uploadFoto(${coleta.id}, ${arquivo.name})`);
-                    const resultado = await api.uploadFoto(coleta.id, arquivo);
-                    console.log(`[DEVOLUÇÃO] Resultado:`, resultado);
-                    fotosUpload++;
-                    console.log('Foto enviada:', arquivo.name);
-                } catch (e) {
-                    fotosErro++;
-                    console.error('Erro ao enviar foto:', arquivo.name, e);
-                }
-            } else {
-                console.log(`[DEVOLUÇÃO] Input ${input.id} vazio`);
+        for (let arquivo of arquivos) {
+            console.log(`[DEVOLUÇÃO] Tentando enviar arquivo:`, arquivo.name, `(${arquivo.size} bytes, ${arquivo.type})`);
+            try {
+                console.log(`[DEVOLUÇÃO] Chamando api.uploadFoto(${coleta.id}, ${arquivo.name})`);
+                const resultado = await api.uploadFoto(coleta.id, arquivo);
+                console.log(`[DEVOLUÇÃO] Resultado:`, resultado);
+                fotosUpload++;
+                console.log('Foto enviada:', arquivo.name);
+            } catch (e) {
+                fotosErro++;
+                console.error('Erro ao enviar foto:', arquivo.name, e);
             }
         }
         
