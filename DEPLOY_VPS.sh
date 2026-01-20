@@ -48,8 +48,8 @@ if [ ! -f .env ]; then
 ENVIRONMENT=production
 DEBUG=False
 
-# Database (CHANGE THIS PASSWORD!)
-DATABASE_URL=postgresql://frota_user:MUDE_ESTA_SENHA_AQUI@db:5432/frota_db
+# Database
+DATABASE_URL=postgresql://frota_user:senha_super_segura_mude_aqui@db:5432/frota_db
 
 # Security (keep current SECRET_KEY or generate new)
 SECRET_KEY=_uvlaPZAtgJrJluydAO_umOm0sdk1FHCA_27cgDixY3tc2hW6T3PHesxU4482ePtP41ZTizZYxWy0ncHHFTRFA
@@ -59,17 +59,11 @@ RATE_LIMIT_ENABLED=True
 LOG_LEVEL=INFO
 EOF
 
-    echo -e "${YELLOW}ATENÇÃO: Arquivo .env criado. MUDE A SENHA DO BANCO DE DADOS!${NC}"
-    echo -e "${YELLOW}Edite: nano .env${NC}"
-    echo -e "${YELLOW}Depois continue o deployment.${NC}"
-    exit 1
+    echo -e "${GREEN}✓ Arquivo .env criado com senha padrão${NC}"
 else
     echo -e "${GREEN}✓ .env encontrado${NC}"
 fi
 
-# Update postgres password in compose if needed
-echo -e "${YELLOW}Atualizando senha PostgreSQL no docker-compose...${NC}"
-sed -i 's/POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=MUDE_ESTA_SENHA_AQUI/' docker-compose.yml || true
 echo -e "${GREEN}✓ Configuração de ambiente pronta${NC}\n"
 
 # ============================================================================
