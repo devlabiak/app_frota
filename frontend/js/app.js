@@ -628,10 +628,12 @@ function renderizarFotosPorDia(dados) {
         return;
     }
 
+    // iso em formato YYYY-MM-DD (sem timezone) vindo já no fuso de SP -> formatar manual para evitar shift
     const formatarData = (iso) => {
         if (!iso) return '-';
-        const d = new Date(iso);
-        return d.toLocaleDateString('pt-BR');
+        const [y, m, d] = iso.split('-');
+        if (!d) return iso;
+        return `${d}/${m}/${y}`;
     };
     const formatarHora = (iso) => {
         if (!iso) return '-';
