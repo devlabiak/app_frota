@@ -12,6 +12,9 @@ from datetime import datetime, timedelta
 import pytz
 from datetime import datetime, timedelta, date
 from pytz import timezone as pytz_timezone
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 security = HTTPBearer()
