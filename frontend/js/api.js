@@ -98,9 +98,14 @@ class API {
             if (!res.ok) {
                 let err;
                 try {
-                    err = await res.json();
-                } catch {
-                    err = { detail: await res.text() };
+                    const contentType = res.headers.get('content-type');
+                    if (contentType && contentType.includes('application/json')) {
+                        err = await res.json();
+                    } else {
+                        err = { detail: await res.text() };
+                    }
+                } catch (parseErr) {
+                    err = { detail: `HTTP Error ${res.status}: ${res.statusText}` };
                 }
                 console.error(`[API ERROR] ${res.status}`, err);
                 throw new Error(err.detail || `Erro HTTP ${res.status}`);
