@@ -210,7 +210,8 @@ def listar_fotos_usuario(usuario_id: str, current_admin: Usuario = Depends(get_c
         if foto.criado_em:
             criado_em_br = foto.criado_em.replace(tzinfo=pytz.utc).astimezone(tz)
             data = criado_em_br.date().isoformat()
-            criado_em_str = criado_em_br.strftime("%Y-%m-%dT%H:%M:%S")
+            # Retornar ISO com offset (-03:00) para o front já receber em horário de SP
+            criado_em_str = criado_em_br.isoformat()
         else:
             data = "sem-data"
             criado_em_str = None

@@ -630,16 +630,13 @@ function renderizarFotosPorDia(dados) {
 
     const formatarData = (iso) => {
         if (!iso) return '-';
-        const [y, m, d] = iso.split('-');
-        return `${d}/${m}/${y}`;
+        const d = new Date(iso);
+        return d.toLocaleDateString('pt-BR');
     };
     const formatarHora = (iso) => {
         if (!iso) return '-';
-        // iso vem como "YYYY-MM-DDTHH:MM:SS" (sem timezone); evitar ajuste de fuso
-        const [data, hora] = iso.split('T');
-        if (!hora) return '-';
-        const [h, mi] = hora.split(':');
-        return `${h}:${mi}`;
+        const d = new Date(iso);
+        return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     };
     const etapaLabel = (etapa) => etapa === 'saida' ? 'Saída' : etapa === 'retorno' ? 'Retorno' : (etapa || '');
 
