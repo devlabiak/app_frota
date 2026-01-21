@@ -1108,6 +1108,7 @@ function exibirRelatorioPeriodoUsuario(dados) {
     div.innerHTML = '';
     
     const periodo = dados.periodo;
+    const periodoFmt = formatarPeriodo(periodo);
     const stats = dados.estatisticas;
     const usoPorDia = dados.uso_por_dia || [];
     
@@ -1115,7 +1116,7 @@ function exibirRelatorioPeriodoUsuario(dados) {
         <div class="relatorio-stats-container">
             <div class="relatorio-periodo-info">
                 <p><strong>📋 Relatório do Motorista:</strong> ${dados.usuario_id} - ${dados.usuario_nome}</p>
-                <p><strong>Período:</strong> ${formatarData(periodo.data_inicio)} a ${formatarData(periodo.data_fim)} (${periodo.dias} dias)</p>
+                <p><strong>Período:</strong> ${periodoFmt.inicio} a ${periodoFmt.fim} (${periodoFmt.dias} dias)</p>
             </div>
             <div class="relatorio-stats">
                 <div class="stat-box">
