@@ -27,6 +27,21 @@ function showNotification(message, type = 'info') {
     }, 5000);
 }
 
+// LOADER DE UPLOAD
+function showLoader() {
+    const loader = document.getElementById('uploadLoader');
+    if (loader) {
+        loader.classList.add('active');
+    }
+}
+
+function hideLoader() {
+    const loader = document.getElementById('uploadLoader');
+    if (loader) {
+        loader.classList.remove('active');
+    }
+}
+
 function atualizarBotaoFoto(gridId, idx, file) {
     const grid = document.getElementById(gridId);
     if (!grid) return;
@@ -275,6 +290,9 @@ async function retirar(e) {
         coleta = await api.retirar(veiculo_id, km, obs);
         console.log('Coleta retornada:', coleta);
         
+        // Mostrar loader durante upload das fotos
+        showLoader();
+        
         // Fazer upload das fotos da retirada (usando arquivos guardados na memória)
         let fotosUpload = 0;
         let fotosErro = 0;
@@ -295,8 +313,21 @@ async function retirar(e) {
             }
         }
         
-        mostraDevol();
+        // Ocultar loader após completar uploads
+        hideLoader();
+        
+        // Limpar formulário de retirada
         document.getElementById('formRetirada').reset();
+        document.querySelectorAll('#photosGridRetirada .photo-status').forEach((btn) => {
+            btn.classList.remove('filled');
+            btn.classList.add('empty');
+            btn.innerHTML = '<span class="icon">📷</span><span class="label">Carregar foto</span>';
+        });
+        
+        // Pequeno delay para melhor UX e então mostrar tela de devolução
+        setTimeout(() => {
+            mostraDevol();
+        }, 500);
         
         if (fotosUpload > 0) {
             showNotification(`✓ ${fotosUpload} foto(s) carregada(s)!`, 'success');
@@ -365,6 +396,9 @@ async function devolver(e) {
         const res = await api.devolver(coleta.id, km, obs);
         console.log('Devolução realizada:', res);
         
+        // Mostrar loader durante upload das fotos
+        showLoader();
+        
         // Fazer upload das fotos (usando arquivos guardados em memória)
         let fotosUpload = 0;
         let fotosErro = 0;
@@ -385,7 +419,10 @@ async function devolver(e) {
             }
         }
         
-        coleta = null;
+        // Ocultar loader após completar uploads
+        hideLoader();
+        
+        // Limpar formulário de devolução
         document.getElementById('formDevolucao').reset();
         
         // Limpar estado dos botões de foto após upload
@@ -395,8 +432,14 @@ async function devolver(e) {
             btn.innerHTML = '<span class="icon">📷</span><span class="label">Carregar foto</span>';
         });
         
-        mostraRet();
-        await carregarVeiculos();
+        // Zerar coleta
+        coleta = null;
+        
+        // Pequeno delay para melhor UX e então mostrar tela de retirada
+        setTimeout(async () => {
+            mostraRet();
+            await carregarVeiculos();
+        }, 500);
         
         if (fotosUpload > 0 || fotosErro === 0) {
             showNotification('✓ Veículo devolvido com sucesso!', 'success');
