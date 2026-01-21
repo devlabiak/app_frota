@@ -749,8 +749,9 @@ async function carregarRelatorios() {
         while (!select && tentativas < 10) {
             console.log('Aguardando elemento filtroUsuario...', tentativas);
             await new Promise(r => setTimeout(r, 100));
-            select = document.getElementById('filtroUsuario');
-            tentativas++;
+            const periodo = dados.periodo;
+            const periodoFmt = formatarPeriodo(periodo);
+            const stats = dados.estatisticas_gerais;
         }
         
         if (!select) {
@@ -985,6 +986,7 @@ function exibirRelatorioPeriodo(dados) {
     div.innerHTML = '';
     
     const periodo = dados.periodo;
+    const periodoFmt = formatarPeriodo(periodo);
     const stats = dados.estatisticas_gerais;
     
     console.log('Período:', periodo);
@@ -994,7 +996,7 @@ function exibirRelatorioPeriodo(dados) {
     let html = `
         <div class="relatorio-stats-container">
             <div class="relatorio-periodo-info">
-                <p><strong>Período:</strong> ${formatarData(periodo.data_inicio)} a ${formatarData(periodo.data_fim)} (${periodo.dias} dias)</p>
+                <p><strong>Período:</strong> ${periodoFmt.inicio} a ${periodoFmt.fim} (${periodoFmt.dias} dias)</p>
             </div>
             <div class="relatorio-stats">
                 <div class="stat-box">
@@ -1232,6 +1234,28 @@ function formatarData(dataStr) {
     if (!dataStr) return 'N/A';
     const [ano, mes, dia] = dataStr.split('-');
     return `${dia}/${mes}/${ano}`;
+}
+
+function formatarPeriodo(periodo) {
+    if (!periodo) return { inicio: '-', fim: '-', dias: 0 };
+    // Se período for 'hoje', usa a data local do navegador para evitar desvio de timezone
+    if (periodo.tipo === 'hoje') {
+        const hojeLocal = new Date();
+        const yyyy = hojeLocal.getFullYear();
+        const mm = String(hojeLocal.getMonth() + 1).padStart(2, '0');
+        const dd = String(hojeLocal.getDate()).padStart(2, '0');
+        const dataISO = `${yyyy}-${mm}-${dd}`;
+        return {
+            inicio: formatarData(dataISO),
+            fim: formatarData(dataISO),
+            dias: 1
+        };
+    }
+    return {
+        inicio: formatarData(periodo.data_inicio),
+        fim: formatarData(periodo.data_fim),
+        dias: periodo.dias
+    };
 }
 
 function switchRelatorioPeriodo(periodo) {
