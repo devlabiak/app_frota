@@ -983,6 +983,7 @@ body {
     text-align: center;
     z-index: 3000;
     animation: welcomeIn 0.4s ease, welcomeOut 0.4s ease 1.6s;
+    animation-fill-mode: forwards;
     font-size: 32px;
     font-weight: bold;
     min-width: 300px;
@@ -991,7 +992,8 @@ body {
 .welcome-popup .user-name {
     font-size: 28px;
     margin-top: 15px;
-    opacity: 0.95;
+    font-weight: bold;
+    color: white;
 }
 
 @keyframes welcomeIn {
