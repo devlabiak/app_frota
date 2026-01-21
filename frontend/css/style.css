@@ -987,6 +987,7 @@ body {
     font-size: 32px;
     font-weight: bold;
     min-width: 300px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
 }
 
 .welcome-popup .user-name {
@@ -994,6 +995,7 @@ body {
     margin-top: 15px;
     font-weight: bold;
     color: white;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
 }
 
 @keyframes welcomeIn {
