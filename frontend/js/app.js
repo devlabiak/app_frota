@@ -72,7 +72,7 @@ function atualizarBotaoFoto(gridId, idx, file) {
 function showWelcome(nome) {
     const popup = document.createElement('div');
     popup.className = 'welcome-popup';
-    popup.innerHTML = `<div>Olá!</div><div class="user-name">${nome}</div>`;
+    popup.innerHTML = `<div class="welcome-greeting">Olá!</div><div class="user-name">${nome}</div>`;
     document.body.appendChild(popup);
     
     setTimeout(() => {
