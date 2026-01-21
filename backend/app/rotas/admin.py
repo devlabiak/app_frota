@@ -510,7 +510,7 @@ def relatorio_por_periodo(
     - ano: últimos 365 dias
     - personalizado: usar data_inicio e data_fim
     """
-    hoje = datetime.utcnow().date()
+    hoje = get_hoje_br()
     
     # Definir período
     if periodo == "personalizado" and data_inicio and data_fim:
