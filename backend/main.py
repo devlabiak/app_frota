@@ -147,6 +147,11 @@ def read_root():
     response.headers["Expires"] = "0"
     return response
 
+@app.get("/version")
+def get_version():
+    """Retorna timestamp da última atualização para cache busting"""
+    return {"version": datetime.utcnow().timestamp()}
+
 @app.get("/health")
 def health():
     return {"status": "ok", "environment": settings.ENVIRONMENT}
