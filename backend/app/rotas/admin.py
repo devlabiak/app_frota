@@ -18,6 +18,13 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 security = HTTPBearer()
+# Timezone do Brasil (São Paulo)
+TZ_BRASIL = pytz_timezone('America/Sao_Paulo')
+
+def get_hoje_br():
+    """Retorna a data de hoje no fuso horário do Brasil"""
+    return datetime.now(TZ_BRASIL).date()
+
 
 def get_current_admin(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
     usuario_id = verify_token(credentials.credentials)
@@ -131,7 +138,7 @@ def gerar_relatorio(current_admin: Usuario = Depends(get_current_admin), db: Ses
     relatorio_veiculos = []
     veiculos = db.query(Veiculo).filter(Veiculo.ativo == True).all()
     
-    hoje = datetime.utcnow().date()
+    hoje = get_hoje_br()
     uma_semana_atras = hoje - timedelta(days=7)
     um_mes_atras = hoje - timedelta(days=30)
     
@@ -261,7 +268,7 @@ def relatorio_usuario_detalhado(
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
     
     # Calcular período
-    hoje = datetime.utcnow().date()
+    hoje = get_hoje_br()
     if periodo == "personalizado" and data_inicio and data_fim:
         try:
             inicio = datetime.strptime(data_inicio, "%Y-%m-%d").date()
@@ -390,7 +397,7 @@ def gerar_relatorio_detalhado(current_admin: Usuario = Depends(get_current_admin
     relatorio_veiculos = []
     veiculos = db.query(Veiculo).filter(Veiculo.ativo == True).all()
     
-    hoje = datetime.utcnow().date()
+    hoje = get_hoje_br()
     uma_semana_atras = hoje - timedelta(days=7)
     um_mes_atras = hoje - timedelta(days=30)
     
@@ -635,7 +642,7 @@ def relatorio_veiculo_detalhado(
         raise HTTPException(status_code=404, detail="Veículo não encontrado")
     
     # Calcular período
-    hoje = datetime.utcnow().date()
+    hoje = get_hoje_br()
     if periodo == "personalizado" and data_inicio and data_fim:
         try:
             inicio = datetime.strptime(data_inicio, "%Y-%m-%d").date()
@@ -722,7 +729,7 @@ def relatorio_consolidado(
     Relatório consolidado com agrupamento por período
     Ideal para gráficos de evolução de uso da frota
     """
-    hoje = datetime.utcnow().date()
+    hoje = get_hoje_br()
     
     # Definir intervalo padrão (último ano)
     if data_inicio and data_fim:
