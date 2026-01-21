@@ -67,6 +67,12 @@ async def log_requests(request: Request, call_next):
     
     response = await call_next(request)
     
+    # Desabilitar cache para arquivos estáticos (CSS, JS, HTML)
+    if any(request.url.path.endswith(ext) for ext in ['.css', '.js', '.html']):
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    
     # Log da resposta
     process_time = (datetime.utcnow() - start_time).total_seconds()
     logger.info(f"← {request.method} {request.url.path} - Status: {response.status_code} - Tempo: {process_time:.3f}s")
