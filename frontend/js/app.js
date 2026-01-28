@@ -253,8 +253,9 @@ async function carregarVeiculos() {
         veics.forEach(v => {
             const opt = document.createElement('option');
             opt.value = v.id;
-            opt.textContent = `${v.placa} - ${v.marca} ${v.modelo} (KM: ${v.km_atual})`;
-            opt.dataset.kmAtual = v.km_atual; // Armazenar KM no dataset
+            const km = v.km_atual || 0;
+            opt.textContent = `${v.placa} - ${v.marca} ${v.modelo} (KM: ${km})`;
+            opt.dataset.kmAtual = km; // Armazenar KM no dataset
             sel.appendChild(opt);
         });
         
