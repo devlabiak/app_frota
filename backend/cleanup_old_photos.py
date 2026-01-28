@@ -1,5 +1,5 @@
 """
-Script para limpar fotos com mais de 60 dias
+"""Script para limpar fotos com mais de 90 dias
 Execute periodicamente via cron ou task scheduler
 """
 
@@ -11,12 +11,12 @@ from app.modelos import Foto
 from app.config import settings
 
 def cleanup_old_photos():
-    """Remove fotos antigas (> 60 dias) do servidor"""
+    """Remove fotos antigas (> 90 dias) do servidor"""
     db = SessionLocal()
     
     try:
-        # Data limite: 60 dias atrás
-        data_limite = datetime.utcnow() - timedelta(days=60)
+        # Data limite: 90 dias atrás
+        data_limite = datetime.utcnow() - timedelta(days=90)
         
         # Buscar fotos antigas
         fotos_antigas = db.query(Foto).filter(Foto.criado_em < data_limite).all()

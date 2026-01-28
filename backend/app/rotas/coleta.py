@@ -10,6 +10,8 @@ from datetime import datetime
 from typing import Optional, List
 import os
 import pytz
+from PIL import Image
+import io
 
 router = APIRouter(prefix="/api/coleta", tags=["coleta"])
 security = HTTPBearer()
@@ -426,14 +428,41 @@ async def upload_foto(coleta_id: int, file: UploadFile = File(...), current_user
     
     logger.info(f"[UPLOAD] Salvando arquivo em: {filepath}")
     
-    # Salvar arquivo
+    # ===== COMPRESSÃO DE IMAGEM =====
+    # Comprimir imagem para economizar espaço em disco
     try:
+        # Abrir imagem
+        img = Image.open(io.BytesIO(contents))
+        
+        # Converter RGBA para RGB se necessário
+        if img.mode in ('RGBA', 'LA', 'P'):
+            background = Image.new('RGB', img.size, (255, 255, 255))
+            if img.mode == 'P':
+                img = img.convert('RGBA')
+            background.paste(img, mask=img.split()[-1] if img.mode == 'RGBA' else None)
+            img = background
+        
+        # Redimensionar se muito grande (máx 1920x1920)
+        max_size = 1920
+        if img.width > max_size or img.height > max_size:
+            img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
+            logger.info(f"[UPLOAD] Imagem redimensionada para: {img.size}")
+        
+        # Salvar com compressão
+        img.save(filepath, 'JPEG', quality=85, optimize=True)
+        
+        # Obter tamanho após compressão
+        tamanho_comprimido = os.path.getsize(filepath)
+        reducao = ((len(contents) - tamanho_comprimido) / len(contents)) * 100
+        logger.info(f"[UPLOAD] Imagem comprimida: {len(contents)/1024:.1f}KB -> {tamanho_comprimido/1024:.1f}KB (-{reducao:.1f}%)")
+        
+    except Exception as e:
+        # Se falhar compressão, salvar arquivo original
+        logger.warning(f"[UPLOAD] Falha na compressão, salvando original: {str(e)}")
         with open(filepath, "wb") as f:
             f.write(contents)
-        logger.info(f"[UPLOAD] Arquivo salvo com sucesso")
-    except Exception as e:
-        logger.error(f"[UPLOAD] Erro ao salvar arquivo: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Erro ao salvar arquivo: {str(e)}")
+    
+    logger.info(f"[UPLOAD] Arquivo salvo com sucesso")
     
     # Salvar no banco com caminho relativo (usuario_id/arquivo)
     caminho_relativo = f"{current_user.usuario_id}/{filename}"

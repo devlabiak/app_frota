@@ -26,14 +26,27 @@
 - Otimizado para SSD (random_page_cost=1.1)
 - Parallel workers habilitados
 
+### Banco de Dados (Melhorias)
+- Pool de conexões: 20 (antes 10) + 30 overflow = 50 máximo
+- Conexões recicladas a cada 1 hora
+- Health check a cada 10 segundos
+
 ### Docker
 **API:**
 - CPU: 0.5-2.0 cores
 - RAM: 512MB-1GB
+- Healthcheck: a cada 30 segundos
 
 **Database:**
 - CPU: 0.25-1.0 cores
 - RAM: 256MB-512MB
+- Healthcheck: a cada 10 segundos
+
+### Segurança
+- Token JWT: 24 horas (antes 11 horas)
+- Max upload: 50MB (antes 10MB)
+- Rate limiting: 60 req/min por IP
+- HTTPS obrigatório via Cloudflare
 
 ## 📦 Deploy das Melhorias
 
