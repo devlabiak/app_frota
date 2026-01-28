@@ -659,7 +659,6 @@ function pararAutoRefreshVeiculos() {
         veiculosRefreshInterval = null;
     }
 }
-}
 
 async function criarVeiculo(e) {
     e.preventDefault();
