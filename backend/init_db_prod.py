@@ -9,6 +9,8 @@ from app.utils import hash_password
 from sqlalchemy.exc import OperationalError
 from sqlalchemy import text
 import logging
+import subprocess
+import sys
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -39,6 +41,15 @@ def init_db():
     # Aguardar banco ficar disponível
     if not wait_for_db():
         return
+    
+    # Aplicar migrações primeiro
+    logger.info("Aplicando migrações do banco de dados...")
+    try:
+        from migrate_db import migrate_db
+        if not migrate_db():
+            logger.warning("⚠️ Alguns problemas ao aplicar migrações, continuando...")
+    except Exception as e:
+        logger.warning(f"⚠️ Erro ao aplicar migrações: {e}, continuando...")
     
     # Criar tabelas
     Base.metadata.create_all(bind=engine)
