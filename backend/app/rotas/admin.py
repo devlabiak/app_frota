@@ -8,9 +8,8 @@ from app.esquemas.usuario import UsuarioCreate, UsuarioResponse
 from app.esquemas.veiculo import VeiculoCreate, VeiculoResponse
 from app.utils import hash_password, verify_token
 from typing import List, Optional
-from datetime import datetime, timedelta
-import pytz
 from datetime import datetime, timedelta, date
+import pytz
 from pytz import timezone as pytz_timezone
 import logging
 
@@ -24,6 +23,24 @@ TZ_BRASIL = pytz_timezone('America/Sao_Paulo')
 def get_hoje_br():
     """Retorna a data de hoje no fuso horário do Brasil"""
     return datetime.now(TZ_BRASIL).date()
+
+
+def converter_utc_para_br(dt_utc):
+    """Converte datetime UTC para datetime Brasil (São Paulo)"""
+    if dt_utc is None:
+        return None
+    if dt_utc.tzinfo is None:
+        # Se não tem timezone info, assume UTC
+        dt_utc = dt_utc.replace(tzinfo=pytz.utc)
+    return dt_utc.astimezone(TZ_BRASIL)
+
+
+def get_data_br(dt_utc):
+    """Extrai apenas a data em timezone Brasil de um datetime UTC"""
+    dt_br = converter_utc_para_br(dt_utc)
+    if dt_br is None:
+        return None
+    return dt_br.date()
 
 
 def get_current_admin(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
@@ -106,7 +123,8 @@ def criar_veiculo(veiculo: VeiculoCreate, current_admin: Usuario = Depends(get_c
         placa=veiculo.placa,
         modelo=veiculo.modelo,
         marca=veiculo.marca,
-        ano=veiculo.ano
+        ano=veiculo.ano,
+        km_atual=veiculo.km_inicial  # Admin define o KM inicial
     )
     db.add(novo_veiculo)
     db.commit()
@@ -125,6 +143,40 @@ def deletar_veiculo(veiculo_id: int, current_admin: Usuario = Depends(get_curren
     
     # Marcar como inativo ao invés de deletar
     veiculo.ativo = False
+    db.commit()
+    return {"mensagem": "Veículo deletado com sucesso"}
+
+@router.put("/veiculos/{veiculo_id}/km")
+def ajustar_km_veiculo(veiculo_id: int, dados: dict, current_admin: Usuario = Depends(get_current_admin), db: Session = Depends(get_db)):
+    """Admin pode ajustar o KM atual de um veículo a qualquer momento"""
+    veiculo = db.query(Veiculo).filter(Veiculo.id == veiculo_id).first()
+    if not veiculo:
+        raise HTTPException(status_code=404, detail="Veículo não encontrado")
+    
+    km_novo = dados.get("km_atual")
+    if km_novo is None:
+        raise HTTPException(status_code=400, detail="km_atual é obrigatório")
+    
+    try:
+        km_novo = float(km_novo)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="KM deve ser um número")
+    
+    if km_novo < 0:
+        raise HTTPException(status_code=400, detail="KM não pode ser negativo")
+    
+    km_anterior = veiculo.km_atual
+    veiculo.km_atual = km_novo
+    db.commit()
+    db.refresh(veiculo)
+    
+    return {
+        "mensagem": "KM ajustado com sucesso",
+        "veiculo_id": veiculo.id,
+        "placa": veiculo.placa,
+        "km_anterior": km_anterior,
+        "km_novo": veiculo.km_atual
+    }
     db.commit()
     return {"mensagem": "Veículo deletado com sucesso"}
 
@@ -158,7 +210,8 @@ def gerar_relatorio(current_admin: Usuario = Depends(get_current_admin), db: Ses
                 km_total += km_coleta
                 
                 if coleta.data_devolucao:
-                    data_coleta = coleta.data_devolucao.date() if isinstance(coleta.data_devolucao, datetime) else coleta.data_devolucao
+                    # CORRIGIDO: Converter data de devolução de UTC para Brasil
+                    data_coleta = get_data_br(coleta.data_devolucao)
                     
                     if data_coleta == hoje:
                         km_hoje += km_coleta
@@ -174,7 +227,8 @@ def gerar_relatorio(current_admin: Usuario = Depends(get_current_admin), db: Ses
                     km_total += viagem.km_rodado
                     
                     if viagem.saida_horario:
-                        data_viagem = viagem.saida_horario.date() if isinstance(viagem.saida_horario, datetime) else viagem.saida_horario
+                        # CORRIGIDO: Converter data de saída de UTC para Brasil
+                        data_viagem = get_data_br(viagem.saida_horario)
                         
                         if data_viagem == hoje:
                             km_hoje += viagem.km_rodado
@@ -288,13 +342,18 @@ def relatorio_usuario_detalhado(
         inicio = hoje - timedelta(days=30)
         fim = hoje
     
-    # Buscar coletas do usuário no período
-    coletas = db.query(Coleta).filter(
+    # Buscar coletas do usuário (depois vamos filtrar por data em BR)
+    coletas_todas = db.query(Coleta).filter(
         Coleta.usuario_id == usuario.id,
-        Coleta.data_devolucao != None,
-        cast(Coleta.data_devolucao, Date) >= inicio,
-        cast(Coleta.data_devolucao, Date) <= fim
+        Coleta.data_devolucao != None
     ).order_by(Coleta.data_devolucao.desc()).all()
+    
+    # CORRIGIDO: Filtrar por data convertendo UTC para Brasil
+    coletas = []
+    for coleta in coletas_todas:
+        data_devolucao_br = get_data_br(coleta.data_devolucao)
+        if inicio <= data_devolucao_br <= fim:
+            coletas.append(coleta)
     
     # Organizar por dia
     uso_por_dia = {}
@@ -310,8 +369,8 @@ def relatorio_usuario_detalhado(
         if not veiculo:
             continue
         
-        # Data da devolução como chave
-        dia = coleta.data_devolucao.date().isoformat()
+        # CORRIGIDO: Data da devolução em timezone Brasil como chave
+        dia = get_data_br(coleta.data_devolucao).isoformat()
         
         if dia not in uso_por_dia:
             uso_por_dia[dia] = {
@@ -417,7 +476,8 @@ def gerar_relatorio_detalhado(current_admin: Usuario = Depends(get_current_admin
                     km_total += viagem.km_rodado
                     
                     if viagem.saida_horario:
-                        data_viagem = viagem.saida_horario.date()
+                        # CORRIGIDO: Converter data de saída de UTC para Brasil
+                        data_viagem = get_data_br(viagem.saida_horario)
                         
                         if data_viagem == hoje:
                             km_hoje += viagem.km_rodado
@@ -546,13 +606,18 @@ def relatorio_por_periodo(
     veiculos = db.query(Veiculo).filter(Veiculo.ativo == True).all()
     
     for veiculo in veiculos:
-        # Buscar coletas no período
-        coletas = db.query(Coleta).filter(
+        # CORRIGIDO: Buscar coletas e depois filtrar por data em Brasil
+        coletas_todas = db.query(Coleta).filter(
             Coleta.veiculo_id == veiculo.id,
-            Coleta.data_devolucao != None,
-            cast(Coleta.data_devolucao, Date) >= inicio,
-            cast(Coleta.data_devolucao, Date) <= fim
+            Coleta.data_devolucao != None
         ).all()
+        
+        # Filtrar por data convertendo UTC para Brasil
+        coletas = []
+        for coleta in coletas_todas:
+            data_devolucao_br = get_data_br(coleta.data_devolucao)
+            if inicio <= data_devolucao_br <= fim:
+                coletas.append(coleta)
         
         km_total = 0
         total_usos = 0
@@ -579,12 +644,18 @@ def relatorio_por_periodo(
     usuarios = db.query(Usuario).filter(Usuario.is_admin == False, Usuario.ativo == True).all()
     
     for usuario in usuarios:
-        coletas = db.query(Coleta).filter(
+        # CORRIGIDO: Buscar coletas e depois filtrar por data em Brasil
+        coletas_todas = db.query(Coleta).filter(
             Coleta.usuario_id == usuario.id,
-            Coleta.data_devolucao != None,
-            cast(Coleta.data_devolucao, Date) >= inicio,
-            cast(Coleta.data_devolucao, Date) <= fim
+            Coleta.data_devolucao != None
         ).all()
+        
+        # Filtrar por data convertendo UTC para Brasil
+        coletas = []
+        for coleta in coletas_todas:
+            data_devolucao_br = get_data_br(coleta.data_devolucao)
+            if inicio <= data_devolucao_br <= fim:
+                coletas.append(coleta)
         
         km_total = 0
         total_coletas = 0
@@ -665,13 +736,18 @@ def relatorio_veiculo_detalhado(
         inicio = hoje - timedelta(days=30)
         fim = hoje
     
-    # Buscar coletas no período
-    coletas = db.query(Coleta).filter(
+    # CORRIGIDO: Buscar coletas e depois filtrar por data em Brasil
+    coletas_todas = db.query(Coleta).filter(
         Coleta.veiculo_id == veiculo_id,
-        Coleta.data_devolucao != None,
-        cast(Coleta.data_devolucao, Date) >= inicio,
-        cast(Coleta.data_devolucao, Date) <= fim
+        Coleta.data_devolucao != None
     ).order_by(Coleta.data_retirada.desc()).all()
+    
+    # Filtrar por data convertendo UTC para Brasil
+    coletas = []
+    for coleta in coletas_todas:
+        data_devolucao_br = get_data_br(coleta.data_devolucao)
+        if inicio <= data_devolucao_br <= fim:
+            coletas.append(coleta)
     
     historico = []
     km_total = 0
@@ -742,12 +818,17 @@ def relatorio_consolidado(
         inicio = hoje - timedelta(days=365)
         fim = hoje
     
-    # Buscar todas as coletas no período
-    coletas = db.query(Coleta).filter(
-        Coleta.data_devolucao != None,
-        cast(Coleta.data_devolucao, Date) >= inicio,
-        cast(Coleta.data_devolucao, Date) <= fim
+    # CORRIGIDO: Buscar coletas e depois filtrar por data em Brasil
+    coletas_todas = db.query(Coleta).filter(
+        Coleta.data_devolucao != None
     ).all()
+    
+    # Filtrar por data convertendo UTC para Brasil
+    coletas = []
+    for coleta in coletas_todas:
+        data_devolucao_br = get_data_br(coleta.data_devolucao)
+        if inicio <= data_devolucao_br <= fim:
+            coletas.append(coleta)
     
     # Agrupar por período
     consolidado = {}
@@ -756,7 +837,8 @@ def relatorio_consolidado(
         if not (coleta.km_devolucao and coleta.km_retirada and coleta.data_devolucao):
             continue
         
-        data = coleta.data_devolucao.date() if isinstance(coleta.data_devolucao, datetime) else coleta.data_devolucao
+        # CORRIGIDO: Usar data convertida para Brasil
+        data = get_data_br(coleta.data_devolucao)
         
         # Determinar chave de agrupamento
         if agrupar_por == "dia":

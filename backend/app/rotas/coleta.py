@@ -14,8 +14,24 @@ import pytz
 router = APIRouter(prefix="/api/coleta", tags=["coleta"])
 security = HTTPBearer()
 
+# Timezone do Brasil (São Paulo)
+TZ_BRASIL = pytz.timezone('America/Sao_Paulo')
+
+
+def converter_utc_para_br(dt_utc):
+    """Converte datetime UTC para datetime Brasil (São Paulo)"""
+    if dt_utc is None:
+        return None
+    if dt_utc.tzinfo is None:
+        # Se não tem timezone info, assume UTC
+        dt_utc = dt_utc.replace(tzinfo=pytz.utc)
+    return dt_utc.astimezone(TZ_BRASIL)
+
 class ViagemData(BaseModel):
     km: float
+    observacoes: Optional[str] = None
+
+class RetiradaData(BaseModel):
     observacoes: Optional[str] = None
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
@@ -51,15 +67,16 @@ def listar_veiculos_disponiveis(current_user: Usuario = Depends(get_current_user
                 "placa": veiculo.placa,
                 "modelo": veiculo.modelo,
                 "marca": veiculo.marca,
-                "ano": veiculo.ano
+                "ano": veiculo.ano,
+                "km_atual": veiculo.km_atual or 0
             })
     
     return resultado
 
 # ===== RETIRAR VEÍCULO (INICIA COLETA) =====
 @router.post("/retirar/{veiculo_id}")
-def retirar_veiculo(veiculo_id: int, dados: ViagemData, current_user: Usuario = Depends(get_current_user), db: Session = Depends(get_db)):
-    """Inicia uma coleta (retirada de veículo) com KM e observações"""
+def retirar_veiculo(veiculo_id: int, dados: RetiradaData, current_user: Usuario = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Inicia uma coleta (retirada de veículo) - KM é preenchido automaticamente do km_atual do veículo"""
     veiculo = db.query(Veiculo).filter(Veiculo.id == veiculo_id).first()
     if not veiculo:
         raise HTTPException(status_code=404, detail="Veículo não encontrado")
@@ -73,11 +90,12 @@ def retirar_veiculo(veiculo_id: int, dados: ViagemData, current_user: Usuario = 
     if coleta_ativa:
         raise HTTPException(status_code=400, detail="Você já tem uma coleta ativa. Devolva o veículo anterior primeiro.")
     
+    # CORRIGIDO: KM de retirada é automaticamente o km_atual do veículo
     nova_coleta = Coleta(
         usuario_id=current_user.id,
         veiculo_id=veiculo_id,
         data_retirada=datetime.utcnow(),
-        km_retirada=dados.km,
+        km_retirada=veiculo.km_atual,  # Preenche automaticamente
         observacoes_retirada=dados.observacoes,
         ativo=True
     )
@@ -93,13 +111,15 @@ def retirar_veiculo(veiculo_id: int, dados: ViagemData, current_user: Usuario = 
             "placa": veiculo.placa,
             "marca": veiculo.marca,
             "modelo": veiculo.modelo,
-            "ano": veiculo.ano
+            "ano": veiculo.ano,
+            "km_atual": veiculo.km_atual
         },
-        "data_retirada": nova_coleta.data_retirada,
+        "data_retirada": converter_utc_para_br(nova_coleta.data_retirada).isoformat() if nova_coleta.data_retirada else None,
         "km_retirada": nova_coleta.km_retirada,
         "observacoes_retirada": nova_coleta.observacoes_retirada,
         "ativo": nova_coleta.ativo,
-        "viagens": []
+        "viagens": [],
+        "mensagem": f"Veículo retirado. KM inicial: {nova_coleta.km_retirada}"
     }
 
 # ===== SAIR COM VEÍCULO =====
@@ -141,7 +161,7 @@ def registrar_saida(coleta_id: int, dados: ViagemData, current_user: Usuario = D
     return {
         "id": nova_viagem.id,
         "numero_viagem": nova_viagem.numero_viagem,
-        "saida_horario": nova_viagem.saida_horario,
+        "saida_horario": converter_utc_para_br(nova_viagem.saida_horario).isoformat() if nova_viagem.saida_horario else None,
         "saida_km": nova_viagem.saida_km
     }
 
@@ -179,7 +199,7 @@ def registrar_retorno(coleta_id: int, dados: ViagemData, current_user: Usuario =
     return {
         "id": viagem_aberta.id,
         "numero_viagem": viagem_aberta.numero_viagem,
-        "retorno_horario": viagem_aberta.retorno_horario,
+        "retorno_horario": converter_utc_para_br(viagem_aberta.retorno_horario).isoformat() if viagem_aberta.retorno_horario else None,
         "retorno_km": viagem_aberta.retorno_km,
         "km_rodado": viagem_aberta.km_rodado
     }
@@ -187,7 +207,7 @@ def registrar_retorno(coleta_id: int, dados: ViagemData, current_user: Usuario =
 # ===== DEVOLVER VEÍCULO (FINALIZA COLETA) =====
 @router.post("/{coleta_id}/devolver")
 def devolver_veiculo(coleta_id: int, dados: ViagemData, current_user: Usuario = Depends(get_current_user), db: Session = Depends(get_db)):
-    """Finaliza coleta (devolve veículo) com KM e observações"""
+    """Finaliza coleta (devolve veículo) com KM e observações - atualiza km_atual do veículo"""
     coleta = db.query(Coleta).filter(
         Coleta.id == coleta_id,
         Coleta.usuario_id == current_user.id,
@@ -211,14 +231,23 @@ def devolver_veiculo(coleta_id: int, dados: ViagemData, current_user: Usuario = 
     coleta.data_devolucao = datetime.utcnow()
     coleta.km_devolucao = dados.km
     coleta.observacoes_devolucao = dados.observacoes
+    
+    # CORRIGIDO: Atualizar km_atual do veículo para o KM da devolução
+    veiculo = db.query(Veiculo).filter(Veiculo.id == coleta.veiculo_id).first()
+    if veiculo:
+        veiculo.km_atual = dados.km  # Próximo usuário terá este KM inicial
+    
     db.commit()
     
     return {
         "id": coleta.id,
-        "data_devolucao": coleta.data_devolucao,
+        "data_devolucao": converter_utc_para_br(coleta.data_devolucao).isoformat() if coleta.data_devolucao else None,
+        "km_retirada": coleta.km_retirada,
         "km_devolucao": coleta.km_devolucao,
+        "km_rodado": round(coleta.km_devolucao - coleta.km_retirada, 2) if (coleta.km_devolucao and coleta.km_retirada) else 0,
         "observacoes_devolucao": coleta.observacoes_devolucao,
-        "ativo": coleta.ativo
+        "ativo": coleta.ativo,
+        "mensagem": f"Veículo devolvido com sucesso. KM rodado: {round(coleta.km_devolucao - coleta.km_retirada, 2)} km"
     }
 
 # ===== OBTER COLETA ATIVA =====
@@ -249,7 +278,7 @@ def obter_coleta_ativa(current_user: Usuario = Depends(get_current_user), db: Se
             "modelo": veiculo.modelo,
             "ano": veiculo.ano
         } if veiculo else None,
-        "data_retirada": coleta.data_retirada,
+        "data_retirada": converter_utc_para_br(coleta.data_retirada).isoformat() if coleta.data_retirada else None,
         "km_retirada": coleta.km_retirada,
         "observacoes_retirada": coleta.observacoes_retirada,
         "ativo": coleta.ativo,
@@ -257,9 +286,9 @@ def obter_coleta_ativa(current_user: Usuario = Depends(get_current_user), db: Se
             {
                 "id": v.id,
                 "numero": v.numero_viagem,
-                "saida_horario": v.saida_horario,
+                "saida_horario": converter_utc_para_br(v.saida_horario).isoformat() if v.saida_horario else None,
                 "saida_km": v.saida_km,
-                "retorno_horario": v.retorno_horario,
+                "retorno_horario": converter_utc_para_br(v.retorno_horario).isoformat() if v.retorno_horario else None,
                 "retorno_km": v.retorno_km,
                 "km_rodado": v.km_rodado
             } for v in viagens
@@ -283,17 +312,17 @@ def listar_viagens(coleta_id: int, current_user: Usuario = Depends(get_current_u
     return {
         "coleta_id": coleta.id,
         "veiculo_id": coleta.veiculo_id,
-        "data_retirada": coleta.data_retirada,
-        "data_devolucao": coleta.data_devolucao,
+        "data_retirada": converter_utc_para_br(coleta.data_retirada).isoformat() if coleta.data_retirada else None,
+        "data_devolucao": converter_utc_para_br(coleta.data_devolucao).isoformat() if coleta.data_devolucao else None,
         "total_viagens": len(viagens),
         "total_km": sum(v.km_rodado for v in viagens if v.km_rodado),
         "viagens": [
             {
                 "id": v.id,
                 "numero": v.numero_viagem,
-                "saida_horario": v.saida_horario,
+                "saida_horario": converter_utc_para_br(v.saida_horario).isoformat() if v.saida_horario else None,
                 "saida_km": v.saida_km,
-                "retorno_horario": v.retorno_horario,
+                "retorno_horario": converter_utc_para_br(v.retorno_horario).isoformat() if v.retorno_horario else None,
                 "retorno_km": v.retorno_km,
                 "km_rodado": v.km_rodado
             } for v in viagens
@@ -443,8 +472,8 @@ def listar_minhas_coletas(current_user: Usuario = Depends(get_current_user), db:
                 "marca": veiculo.marca,
                 "modelo": veiculo.modelo
             },
-            "data_retirada": coleta.data_retirada,
-            "data_devolucao": coleta.data_devolucao,
+            "data_retirada": converter_utc_para_br(coleta.data_retirada).isoformat() if coleta.data_retirada else None,
+            "data_devolucao": converter_utc_para_br(coleta.data_devolucao).isoformat() if coleta.data_devolucao else None,
             "ativo": coleta.ativo,
             "total_viagens": len(viagens),
             "total_km": sum(v.km_rodado for v in viagens if v.km_rodado)

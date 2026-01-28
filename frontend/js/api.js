@@ -36,7 +36,7 @@ class API {
 
     // COLETA
     getVeiculos() { return this.req('GET', '/api/coleta/veiculos'); }
-    retirar(veiculo_id, km, obs) { return this.req('POST', `/api/coleta/retirar/${veiculo_id}`, { km, observacoes: obs }); }
+    retirar(veiculo_id, obs) { return this.req('POST', `/api/coleta/retirar/${veiculo_id}`, { observacoes: obs }); }
     ativa() { return this.req('GET', '/api/coleta/ativa'); }
     devolver(coleta_id, km, obs) { return this.req('POST', `/api/coleta/${coleta_id}/devolver`, { km, observacoes: obs }); }
 
@@ -48,8 +48,9 @@ class API {
     atualizarPrivilegio(id, isAdmin) { return this.req('PUT', `/api/admin/usuarios/${id}/admin`, { is_admin: isAdmin }); }
 
     veiculos() { return this.req('GET', '/api/admin/veiculos'); }
-    criarVeiculo(placa, marca, modelo, ano) { return this.req('POST', '/api/admin/veiculos', { placa, marca, modelo, ano }); }
+    criarVeiculo(placa, marca, modelo, ano, km_inicial) { return this.req('POST', '/api/admin/veiculos', { placa, marca, modelo, ano, km_inicial }); }
     deletarVeiculo(id) { return this.req('DELETE', `/api/admin/veiculos/${id}`); }
+    ajustarKmVeiculo(id, km_atual) { return this.req('PUT', `/api/admin/veiculos/${id}/km`, { km_atual }); }
 
     relatorios() { return this.req('GET', '/api/admin/relatorios'); }
     relatorioUsuario(usuarioId, periodo, dataInicio, dataFim) {

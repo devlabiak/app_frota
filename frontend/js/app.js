@@ -253,8 +253,20 @@ async function carregarVeiculos() {
         veics.forEach(v => {
             const opt = document.createElement('option');
             opt.value = v.id;
-            opt.textContent = `${v.placa} - ${v.marca} ${v.modelo}`;
+            opt.textContent = `${v.placa} - ${v.marca} ${v.modelo} (KM: ${v.km_atual})`;
+            opt.dataset.kmAtual = v.km_atual; // Armazenar KM no dataset
             sel.appendChild(opt);
+        });
+        
+        // Atualizar KM quando selecionar veículo
+        sel.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            const kmInput = document.getElementById('km');
+            if (selectedOption.dataset.kmAtual) {
+                kmInput.value = selectedOption.dataset.kmAtual;
+            } else {
+                kmInput.value = '';
+            }
         });
     } catch (e) {
         console.error(e);
@@ -264,8 +276,8 @@ async function carregarVeiculos() {
 async function retirar(e) {
     e.preventDefault();
     const veiculo_id = document.getElementById('veiculo').value;
-    const km = document.getElementById('km').value;
     const obs = document.getElementById('observacoes').value;
+    // KM não é mais enviado - será preenchido automaticamente do veículo
     
     if (!veiculo_id) return alert('Selecione um veículo');
     
@@ -286,8 +298,8 @@ async function retirar(e) {
     }
     
     try {
-        console.log('Retirar:', { veiculo_id, km, obs });
-        coleta = await api.retirar(veiculo_id, km, obs);
+        console.log('Retirar:', { veiculo_id, obs });
+        coleta = await api.retirar(veiculo_id, obs);
         console.log('Coleta retornada:', coleta);
         
         // Mostrar loader durante upload das fotos
@@ -583,8 +595,10 @@ async function carregarVeiculosAdmin() {
                 <div class="list-item">
                     <div class="list-item-info">
                         <strong>${v.placa}</strong> - ${v.marca} ${v.modelo} (${v.ano})
+                        <br><small style="color: #666;">KM Atual: ${v.km_atual} km</small>
                     </div>
                     <div class="list-item-actions">
+                        <button class="btn btn-small btn-warning" onclick="editarKmVeiculo(${v.id})">Ajustar KM</button>
                         <button class="btn btn-small btn-danger" onclick="delVeiculo(${v.id})">Deletar</button>
                     </div>
                 </div>
@@ -599,12 +613,26 @@ async function criarVeiculo(e) {
     const marca = document.getElementById('novo_veiculo_marca').value;
     const modelo = document.getElementById('novo_veiculo_modelo').value;
     const ano = document.getElementById('novo_veiculo_ano').value;
+    const km_inicial = parseFloat(document.getElementById('novo_veiculo_km_inicial').value);
     
     try {
-        await api.criarVeiculo(placa, marca, modelo, ano);
+        await api.criarVeiculo(placa, marca, modelo, ano, km_inicial);
         document.getElementById('formNovoVeiculo').reset();
         await carregarVeiculosAdmin();
         alert('Veículo criado!');
+    } catch (e) {
+        alert('Erro: ' + e.message);
+    }
+}
+
+async function editarKmVeiculo(id) {
+    const novoKm = prompt('Digite o KM atual do veículo:');
+    if (novoKm === null || novoKm === '') return;
+    
+    try {
+        await api.ajustarKmVeiculo(id, parseFloat(novoKm));
+        alert('KM ajustado com sucesso!');
+        await carregarVeiculosAdmin();
     } catch (e) {
         alert('Erro: ' + e.message);
     }
