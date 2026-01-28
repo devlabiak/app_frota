@@ -170,6 +170,7 @@ async function login(e) {
 }
 
 function logout() {
+    pararAutoRefreshVeiculos(); // Parar auto-refresh
     localStorage.clear();
     user = coleta = null;
     location.reload();
@@ -188,7 +189,7 @@ async function mostrarTela() {
     if (user.admin) {
         document.getElementById('adminScreen').classList.add('active');
         carregarUsuarios();
-        carregarVeiculosAdmin();
+        iniciarAutoRefreshVeiculos(); // Inicia auto-refresh de veículos
         carregarRelatorios();
         carregarUsuariosFotos();
     } else {
@@ -197,20 +198,23 @@ async function mostrarTela() {
             if (coleta) {
                 mostraDevol();
             } else {
-                mostraRet();
+                await mostraRet(); // mostraRet agora carrega veículos internamente
             }
         } catch {
-            mostraRet();
+            await mostraRet(); // mostraRet agora carrega veículos internamente
         }
         document.getElementById('motoristaScreen').classList.add('active');
-        carregarVeiculos();
+        // Removido carregarVeiculos() daqui pois mostraRet() já faz isso
     }
 }
 
 // MOTORISTA
-function mostraRet() {
+async function mostraRet() {
     document.getElementById('painelRetirada').style.display = 'block';
     document.getElementById('painelDevolucao').style.display = 'none';
+    
+    // Recarregar veículos para pegar KM atualizado
+    await carregarVeiculos();
     
     // Limpar fotos carregadas anteriormente
     document.querySelectorAll('.photo-input').forEach(input => {
@@ -249,6 +253,11 @@ async function carregarVeiculos() {
     try {
         const veics = await api.getVeiculos();
         const sel = document.getElementById('veiculo');
+        const kmInput = document.getElementById('km');
+        
+        // Salvar valor selecionado atual se existir
+        const valorAtual = sel.value;
+        
         sel.innerHTML = '<option value="">-- Selecione --</option>';
         veics.forEach(v => {
             const opt = document.createElement('option');
@@ -259,8 +268,22 @@ async function carregarVeiculos() {
             sel.appendChild(opt);
         });
         
+        // Restaurar seleção se existia
+        if (valorAtual) {
+            sel.value = valorAtual;
+            // Atualizar KM do veículo selecionado
+            const selectedOption = sel.options[sel.selectedIndex];
+            if (selectedOption && selectedOption.dataset.kmAtual) {
+                kmInput.value = selectedOption.dataset.kmAtual;
+            }
+        }
+        
+        // Remover listeners antigos e adicionar novo (evitar duplicatas)
+        const newSelect = sel.cloneNode(true);
+        sel.parentNode.replaceChild(newSelect, sel);
+        
         // Atualizar KM quando selecionar veículo
-        sel.addEventListener('change', function() {
+        newSelect.addEventListener('change', function() {
             const selectedOption = this.options[this.selectedIndex];
             const kmInput = document.getElementById('km');
             if (selectedOption.dataset.kmAtual) {
@@ -596,7 +619,7 @@ async function carregarVeiculosAdmin() {
                 <div class="list-item">
                     <div class="list-item-info">
                         <strong>${v.placa}</strong> - ${v.marca} ${v.modelo} (${v.ano})
-                        <br><small style="color: #666;">KM Atual: ${v.km_atual} km</small>
+                        <br><small style="color: #666;">KM Atual: <strong>${v.km_atual || 0} km</strong></small>
                     </div>
                     <div class="list-item-actions">
                         <button class="btn btn-small btn-warning" onclick="editarKmVeiculo(${v.id})">Ajustar KM</button>
@@ -606,6 +629,36 @@ async function carregarVeiculosAdmin() {
             `;
         });
     } catch (e) { console.error(e); }
+}
+
+// Variável para controlar auto-refresh
+let veiculosRefreshInterval = null;
+
+// Iniciar auto-refresh de veículos (a cada 30 segundos)
+function iniciarAutoRefreshVeiculos() {
+    // Limpar intervalo anterior se existir
+    if (veiculosRefreshInterval) {
+        clearInterval(veiculosRefreshInterval);
+    }
+    
+    // Carregar agora
+    carregarVeiculosAdmin();
+    
+    // Auto-refresh a cada 30 segundos
+    veiculosRefreshInterval = setInterval(() => {
+        if (user && user.admin) {
+            carregarVeiculosAdmin();
+        }
+    }, 30000); // 30 segundos
+}
+
+// Parar auto-refresh
+function pararAutoRefreshVeiculos() {
+    if (veiculosRefreshInterval) {
+        clearInterval(veiculosRefreshInterval);
+        veiculosRefreshInterval = null;
+    }
+}
 }
 
 async function criarVeiculo(e) {
